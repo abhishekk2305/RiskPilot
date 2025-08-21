@@ -27,7 +27,7 @@ function createNextRequest(req: any): NextRequest {
   });
 }
 
-async function handleNextResponse(nextRes: NextResponse, res: any) {
+async function handleNextResponse(nextRes: NextResponse | Response, res: any) {
   // Set headers first
   nextRes.headers.forEach((value, key) => {
     res.set(key, value);
