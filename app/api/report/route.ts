@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getRowById, updateRowById } from '../../../lib/sheets';
+import { NextRequest } from 'next/server';
+import { getRowById } from '../../../lib/sheets';
 import { getAssessment, updateAssessment } from '../../../lib/localStorage';
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,46 +9,32 @@ export async function GET(request: NextRequest) {
     const logId = searchParams.get('logId');
 
     if (!logId) {
-      return NextResponse.json(
-        { message: 'Missing logId parameter' },
-        { status: 400 }
-      );
+      return new Response('Missing logId parameter', { status: 400 });
     }
 
-    // Get the assessment data (try local storage first, then Google Sheets)
+    // Get the assessment data
     let rowData = getAssessment(logId);
-    console.log('PDF DEBUG - Retrieved data:', JSON.stringify(rowData, null, 2));
-    
     if (!rowData) {
       try {
         rowData = await getRowById(logId);
-        console.log('PDF DEBUG - Retrieved from sheets:', JSON.stringify(rowData, null, 2));
       } catch (error) {
-        console.log('Google Sheets not available, assessment data not found locally');
+        console.log('Google Sheets not available');
       }
     }
     
     if (!rowData) {
-      console.log('PDF DEBUG - No data found for logId:', logId);
-      return NextResponse.json(
-        { message: 'Assessment data not found' },
-        { status: 404 }
-      );
+      return new Response('Assessment data not found', { status: 404 });
     }
 
-    // Create PDF with correct buffer handling  
+    // Create simple PDF
+    const doc = new PDFDocument({ margin: 50 });
     const chunks: Buffer[] = [];
     
-    const doc = new PDFDocument({ margin: 50 });
-    
-    doc.on('data', (chunk) => {
-      chunks.push(chunk);
-    });
+    doc.on('data', chunk => chunks.push(chunk));
     
     // Add content
     doc.fontSize(20).text('Compliance Risk Assessment Report', { align: 'center' });
     doc.moveDown(2);
-    
     doc.fontSize(16).text('Assessment Details');
     doc.fontSize(12);
     doc.text(`Email: ${rowData.email}`);
@@ -58,7 +43,6 @@ export async function GET(request: NextRequest) {
     doc.text(`Contract Value: $${rowData.contract_value_usd}`);
     doc.text(`Data Processing: ${rowData.data_processing ? 'Yes' : 'No'}`);
     doc.moveDown();
-    
     doc.fontSize(16).text('Risk Assessment');
     doc.fontSize(12);
     doc.text(`Risk Level: ${rowData.level}`);
@@ -74,54 +58,30 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Close the document
     doc.end();
     
-    // Wait for PDF completion and get buffer
-    const pdfBuffer = await new Promise<Buffer>((resolve) => {
-      doc.on('end', () => {
-        const buffer = Buffer.concat(chunks);
-        console.log('PDF DEBUG - Final buffer size:', buffer.length);
-        console.log('PDF DEBUG - First 50 bytes:', buffer.subarray(0, 50).toString());
-        
-        // Save debug file to verify content
-        fs.writeFileSync(`debug-${logId}.pdf`, buffer);
-        console.log('PDF DEBUG - Saved debug file');
-        
-        resolve(buffer);
-      });
+    // Get buffer
+    const buffer = await new Promise<Buffer>((resolve) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
     });
 
-    // Mark as downloaded (try both local storage and Google Sheets)
+    // Mark as downloaded
     try {
       updateAssessment(logId, { downloaded_pdf: true });
-      await updateRowById(logId, { downloaded_pdf: true });
     } catch (error) {
-      console.error('Failed to update download status:', error);
-      // Don't fail the request if we can't update the status
+      console.log('Failed to update status');
     }
 
-    // Try serving the actual file we know works
-    console.log('PDF DEBUG - Sending buffer of size:', pdfBuffer.length);
-    
-    // Read the debug file we know is valid and serve that instead
-    const debugFileBuffer = fs.readFileSync(`debug-${logId}.pdf`);
-    console.log('PDF DEBUG - Debug file size:', debugFileBuffer.length);
-    
-    return new NextResponse(debugFileBuffer, {
-      status: 200,
+    // Return as file download
+    return new Response(buffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="Compliance-Risk-Report-${logId}.pdf"`,
-        'Content-Length': debugFileBuffer.length.toString(),
+        'Content-Disposition': `attachment; filename="report-${logId}.pdf"`,
       },
     });
 
   } catch (error) {
     console.error('Report API error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+    return new Response('Internal server error', { status: 500 });
   }
 }
