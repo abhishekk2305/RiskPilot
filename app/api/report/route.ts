@@ -17,15 +17,19 @@ export async function GET(request: NextRequest) {
 
     // Get the assessment data (try local storage first, then Google Sheets)
     let rowData = getAssessment(logId);
+    console.log('PDF DEBUG - Retrieved data:', JSON.stringify(rowData, null, 2));
+    
     if (!rowData) {
       try {
         rowData = await getRowById(logId);
+        console.log('PDF DEBUG - Retrieved from sheets:', JSON.stringify(rowData, null, 2));
       } catch (error) {
         console.log('Google Sheets not available, assessment data not found locally');
       }
     }
     
     if (!rowData) {
+      console.log('PDF DEBUG - No data found for logId:', logId);
       return NextResponse.json(
         { message: 'Assessment data not found' },
         { status: 404 }
@@ -73,7 +77,9 @@ export async function GET(request: NextRequest) {
     // Wait for completion
     const pdfBuffer = await new Promise<Buffer>((resolve) => {
       doc.on('end', () => {
-        resolve(Buffer.concat(chunks));
+        const buffer = Buffer.concat(chunks);
+        console.log('PDF DEBUG - Buffer created, size:', buffer.length);
+        resolve(buffer);
       });
     });
 
