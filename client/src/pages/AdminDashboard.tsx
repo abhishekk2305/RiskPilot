@@ -14,6 +14,13 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [aggregates, setAggregates] = useState<AdminAggregates | null>(null);
   const [recentSubmissions, setRecentSubmissions] = useState<any[]>([]);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [timeSeriesData, setTimeSeriesData] = useState<any>(null);
+  const [trendsData, setTrendsData] = useState<any>(null);
+  const [selectedMetric, setSelectedMetric] = useState('submissions');
+  const [selectedPeriod, setSelectedPeriod] = useState('day');
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
+  const [notificationConfig, setNotificationConfig] = useState<any>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,11 +50,20 @@ export default function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      const [aggregatesRes, rowsRes] = await Promise.all([
+      const [aggregatesRes, rowsRes, timeSeriesRes, trendsRes, notificationsRes] = await Promise.all([
         fetch('/api/admin/aggregates', {
           headers: { 'Authorization': `Bearer ${adminKey}` },
         }),
         fetch('/api/admin/rows', {
+          headers: { 'Authorization': `Bearer ${adminKey}` },
+        }),
+        fetch(`/api/admin/time-series?metric=${selectedMetric}&period=${selectedPeriod}&days=30`, {
+          headers: { 'Authorization': `Bearer ${adminKey}` },
+        }),
+        fetch('/api/admin/trends?type=overview&period=day', {
+          headers: { 'Authorization': `Bearer ${adminKey}` },
+        }),
+        fetch('/api/admin/notifications', {
           headers: { 'Authorization': `Bearer ${adminKey}` },
         }),
       ]);
@@ -61,14 +77,30 @@ export default function AdminDashboard() {
         const rowsData = await rowsRes.json();
         setRecentSubmissions(rowsData);
       }
+
+      if (timeSeriesRes.ok) {
+        const timeSeriesData = await timeSeriesRes.json();
+        setTimeSeriesData(timeSeriesData);
+      }
+
+      if (trendsRes.ok) {
+        const trendsData = await trendsRes.json();
+        setTrendsData(trendsData);
+      }
+
+      if (notificationsRes.ok) {
+        const notificationsData = await notificationsRes.json();
+        setNotificationConfig(notificationsData.config);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     }
   };
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = async (format: string) => {
     try {
-      const response = await fetch('/api/admin/export-csv', {
+      setShowExportMenu(false);
+      const response = await fetch(`/api/admin/export-csv?format=${format}`, {
         headers: { 'Authorization': `Bearer ${adminKey}` },
       });
       
@@ -77,12 +109,85 @@ export default function AdminDashboard() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'pilot-submissions.csv';
+        a.download = `compliance-data-${format}-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         window.URL.revokeObjectURL(url);
       }
     } catch (error) {
       console.error('Export error:', error);
+    }
+  };
+
+  const handleExportAggregated = async (groupBy: string) => {
+    try {
+      setShowExportMenu(false);
+      const response = await fetch(`/api/admin/export-aggregated?groupBy=${groupBy}&includeTimeDistribution=true&includeFeedbackStats=true`, {
+        headers: { 'Authorization': `Bearer ${adminKey}` },
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `compliance-aggregated-${groupBy}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Aggregated export error:', error);
+    }
+  };
+
+  const handleMetricChange = async (metric: string) => {
+    setSelectedMetric(metric);
+    try {
+      const response = await fetch(`/api/admin/time-series?metric=${metric}&period=${selectedPeriod}&days=30`, {
+        headers: { 'Authorization': `Bearer ${adminKey}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTimeSeriesData(data);
+      }
+    } catch (error) {
+      console.error('Error loading time series:', error);
+    }
+  };
+
+  const handlePeriodChange = async (period: string) => {
+    setSelectedPeriod(period);
+    try {
+      const response = await fetch(`/api/admin/time-series?metric=${selectedMetric}&period=${period}&days=30`, {
+        headers: { 'Authorization': `Bearer ${adminKey}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTimeSeriesData(data);
+      }
+    } catch (error) {
+      console.error('Error loading time series:', error);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      const response = await fetch('/api/admin/notifications', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${adminKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'test-notification' }),
+      });
+      
+      if (response.ok) {
+        alert('Test notification sent successfully! Check your configured channels.');
+      } else {
+        alert('Failed to send test notification');
+      }
+    } catch (error) {
+      console.error('Test notification error:', error);
+      alert('Error sending test notification');
     }
   };
 
@@ -209,7 +314,57 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* Charts */}
+            {/* Time Series Analytics */}
+            <div className="mb-8">
+              <div className="bg-white rounded-lg shadow border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 sm:mb-0">Time Series Analytics</h3>
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                      <select 
+                        value={selectedMetric} 
+                        onChange={(e) => handleMetricChange(e.target.value)}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="submissions">Submissions</option>
+                        <option value="risk-levels">Risk Levels</option>
+                        <option value="countries">Countries</option>
+                        <option value="contract-types">Contract Types</option>
+                        <option value="performance">Performance</option>
+                      </select>
+                      <select 
+                        value={selectedPeriod} 
+                        onChange={(e) => handlePeriodChange(e.target.value)}
+                        className="px-3 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="hour">Hourly</option>
+                        <option value="day">Daily</option>
+                        <option value="week">Weekly</option>
+                        <option value="month">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {timeSeriesData && (
+                    <AdminChart
+                      type="line"
+                      title={`${selectedMetric.charAt(0).toUpperCase() + selectedMetric.slice(1)} Trends`}
+                      data={timeSeriesData}
+                      options={{
+                        responsive: true,
+                        scales: selectedMetric === 'performance' ? {
+                          y: { type: 'linear', display: true, position: 'left' },
+                          y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+                        } : undefined
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Traditional Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               <AdminChart
                 type="bar"
@@ -245,6 +400,117 @@ export default function AdminDashboard() {
                 }}
               />
             </div>
+
+            {/* Insights Panel */}
+            {trendsData && trendsData.insights && trendsData.insights.length > 0 && (
+              <div className="mb-8">
+                <div className="bg-white rounded-lg shadow border border-gray-200">
+                  <div className="p-6 border-b border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900">Key Insights</h3>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {trendsData.insights.map((insight: any, index: number) => (
+                        <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-start">
+                            <i className={`fas ${
+                              insight.type === 'growth' ? 'fa-chart-line' :
+                              insight.type === 'behavior' ? 'fa-users' :
+                              insight.type === 'geographical' ? 'fa-globe' :
+                              'fa-info-circle'
+                            } text-blue-600 mt-0.5 mr-3`}></i>
+                            <p className="text-sm text-blue-800">{insight.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Notification Settings Panel */}
+            {showNotificationSettings && notificationConfig && (
+              <div className="mb-8">
+                <div className="bg-white rounded-lg shadow border border-gray-200">
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold text-gray-900">Email Alert Configuration</h3>
+                      <button 
+                        onClick={() => setShowNotificationSettings(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <i className="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Current Settings</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Status:</span>
+                            <span className={`font-medium ${notificationConfig.enabled ? 'text-green-600' : 'text-red-600'}`}>
+                              {notificationConfig.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">High Risk Threshold:</span>
+                            <span className="font-medium">{notificationConfig.highRiskThreshold}/15</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Admin Emails:</span>
+                            <span className="font-medium">{notificationConfig.adminEmails.length} configured</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Rate Limit:</span>
+                            <span className="font-medium">{notificationConfig.rateLimit}/hour</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Slack Webhook:</span>
+                            <span className="font-medium">{notificationConfig.webhookUrl ? 'Configured' : 'Not set'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Actions</h4>
+                        <div className="space-y-3">
+                          <button 
+                            onClick={handleTestNotification}
+                            className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm"
+                          >
+                            <i className="fas fa-paper-plane mr-2"></i>Send Test Alert
+                          </button>
+                          <div className="text-xs text-gray-500">
+                            <p><strong>Test alert will trigger a high-risk notification to all configured channels.</strong></p>
+                            <p className="mt-2">To configure notification settings, update your environment variables:</p>
+                            <ul className="mt-1 space-y-1 list-disc list-inside">
+                              <li><code>EMAIL_NOTIFICATIONS_ENABLED</code></li>
+                              <li><code>ADMIN_NOTIFICATION_EMAILS</code></li>
+                              <li><code>HIGH_RISK_THRESHOLD</code></li>
+                              <li><code>SLACK_WEBHOOK_URL</code></li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex">
+                        <i className="fas fa-exclamation-triangle text-yellow-600 mt-0.5 mr-3"></i>
+                        <div className="text-sm">
+                          <p className="font-medium text-yellow-800">Notification Triggers</p>
+                          <p className="text-yellow-700 mt-1">
+                            Automatic alerts are sent when assessments result in High risk level or score ≥ {notificationConfig.highRiskThreshold}.
+                            This helps ensure prompt review of potentially problematic contractor arrangements.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -254,17 +520,67 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-900">Recent Submissions</h3>
               <div className="flex space-x-2">
-                <button 
-                  onClick={handleExportCSV}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  <i className="fas fa-download mr-2"></i>Export CSV
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors text-sm flex items-center"
+                  >
+                    <i className="fas fa-download mr-2"></i>Export Data
+                    <i className="fas fa-chevron-down ml-1"></i>
+                  </button>
+                  {showExportMenu && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+                      <button 
+                        onClick={() => handleExportCSV('standard')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                      >
+                        <i className="fas fa-table mr-2"></i>Raw Data (Standard)
+                      </button>
+                      <button 
+                        onClick={() => handleExportCSV('privacy-safe')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                      >
+                        <i className="fas fa-shield-alt mr-2"></i>Raw Data (Privacy-Safe)
+                      </button>
+                      <button 
+                        onClick={() => handleExportCSV('analytics')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                      >
+                        <i className="fas fa-chart-line mr-2"></i>Analytics Format
+                      </button>
+                      <hr className="my-1" />
+                      <button 
+                        onClick={() => handleExportAggregated('day')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                      >
+                        <i className="fas fa-calendar-day mr-2"></i>Daily Aggregates
+                      </button>
+                      <button 
+                        onClick={() => handleExportAggregated('week')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                      >
+                        <i className="fas fa-calendar-week mr-2"></i>Weekly Aggregates
+                      </button>
+                      <button 
+                        onClick={() => handleExportAggregated('month')}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                      >
+                        <i className="fas fa-calendar-alt mr-2"></i>Monthly Aggregates
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button 
                   onClick={handleGenerateCaseStudy}
                   className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                 >
                   <i className="fas fa-file-pdf mr-2"></i>Case Study PDF
+                </button>
+                <button 
+                  onClick={() => setShowNotificationSettings(!showNotificationSettings)}
+                  className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors text-sm"
+                >
+                  <i className="fas fa-bell mr-2"></i>Alerts
                 </button>
               </div>
             </div>

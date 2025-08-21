@@ -4,6 +4,7 @@ import { riskEngine } from '../../../lib/riskEngine';
 import { appendToSheet, getTimestamp } from '../../../lib/sheets';
 import { checkRateLimit } from '../../../lib/rateLimiter';
 import { maskEmail, getLastIpOctet } from '../../../lib/utils';
+import { emailNotificationService } from '../../../lib/emailNotifications';
 import { randomUUID } from 'crypto';
 
 // In-memory storage for tracking start times
@@ -68,6 +69,26 @@ export async function POST(request: NextRequest) {
 
     // Log to Google Sheets
     await appendToSheet(rowData);
+
+    // Send email notification for high-risk assessments
+    if (riskResult.level === 'High' || riskResult.score >= 8) {
+      try {
+        await emailNotificationService.sendHighRiskAlert({
+          id,
+          email: formData.email,
+          country: formData.country,
+          contractType: formData.contract_type,
+          contractValue: formData.contract_value_usd,
+          riskLevel: riskResult.level,
+          riskScore: riskResult.score,
+          reasons: riskResult.reasons,
+          timestamp: rowData.timestamp_iso,
+        });
+      } catch (error) {
+        // Don't fail the request if notification fails
+        console.error('Failed to send high-risk notification:', error);
+      }
+    }
 
     // Return result
     return NextResponse.json({
