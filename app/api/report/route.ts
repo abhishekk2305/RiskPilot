@@ -92,11 +92,15 @@ export async function GET(request: NextRequest) {
       // Don't fail the request if we can't update the status
     }
 
-    // Return PDF
-    return new NextResponse(pdfBuffer, {
+    // Return PDF using standard Response instead of NextResponse
+    console.log('PDF DEBUG - Sending buffer of size:', pdfBuffer.length);
+    
+    return new Response(pdfBuffer, {
+      status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="Compliance-Risk-Report-${logId}.pdf"`,
+        'Content-Length': pdfBuffer.length.toString(),
       },
     });
 

@@ -1,0 +1,57 @@
+
+> rest-express@1.0.0 dev
+7:38:13 AM [express] serving on port 5000s
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+Stored assessment data locally for ID: 436533fd-ea1f-452d-892d-9b2ff0f6816d
+Google Sheets not configured, skipping logging. Set GOOGLE_SHEET_ID and GOOGLE_SA_EMAIL to enable.
+7:39:00 AM [express] POST /api/score 200 in 21ms :: {"id":"436533fd-ea1f-452d-892d-9b2ff0f6816d","sc…
+Error updating sheet row: Error: Missing required parameters: spreadsheetId
+    at createAPIRequestAsync (/home/runner/workspace/node_modules/googleapis-common/build/src/apirequest.js:113:15)
+    at createAPIRequest (/home/runner/workspace/node_modules/googleapis-common/build/src/apirequest.js:53:16)
+    at Resource$Spreadsheets$Values.get (/home/runner/workspace/node_modules/googleapis/build/src/apis/sheets/v4.js:595:65)
+    at updateRowById (/home/runner/workspace/lib/sheets.ts:106:57)
+    at POST (/home/runner/workspace/app/api/result_ready/route.ts:35:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:65:23)
+Result ready API error: Error: Failed to update data in Google Sheets
+    at updateRowById (/home/runner/workspace/lib/sheets.ts:146:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async POST (/home/runner/workspace/app/api/result_ready/route.ts:35:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:65:23)
+7:39:01 AM [express] POST /api/result_ready 500 in 10ms :: {"message":"Internal server error"}
+Retrieved assessment data locally for ID: 436533fd-ea1f-452d-892d-9b2ff0f6816d
+PDF DEBUG - Retrieved data: {
+  "id": "436533fd-ea1f-452d-892d-9b2ff0f6816d",
+  "timestamp_iso": "2025-08-21T07:39:00.937Z",
+  "email": "abhishekkdhama@gmail.com",
+  "country": "IN",
+  "contract_type": "independent",
+  "contract_value_usd": 1000,
+  "data_processing": true,
+  "score": 5,
+  "level": "Medium",
+  "time_to_result_ms": null,
+  "downloaded_pdf": false,
+  "feedback": null,
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+  "ip_last_octet": "132",
+  "reasons": "Complex regulatory environment requires careful navigation|Independent contractor classification requires careful documentation"
+}
+PDF DEBUG - Buffer created, size: 1741
+Updated assessment data locally for ID: 436533fd-ea1f-452d-892d-9b2ff0f6816d
+Error updating sheet row: Error: Missing required parameters: spreadsheetId
+    at createAPIRequestAsync (/home/runner/workspace/node_modules/googleapis-common/build/src/apirequest.js:113:15)
+    at createAPIRequest (/home/runner/workspace/node_modules/googleapis-common/build/src/apirequest.js:53:16)
+    at Resource$Spreadsheets$Values.get (/home/runner/workspace/node_modules/googleapis/build/src/apis/sheets/v4.js:595:65)
+    at updateRowById (/home/runner/workspace/lib/sheets.ts:106:57)
+    at GET (/home/runner/workspace/app/api/report/route.ts:89:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:76:23)
+Failed to update download status: Error: Failed to update data in Google Sheets
+    at updateRowById (/home/runner/workspace/lib/sheets.ts:146:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async GET (/home/runner/workspace/app/api/report/route.ts:89:7)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:76:23)
+7:39:02 AM [express] GET /api/report 200 in 25ms
