@@ -17,32 +17,44 @@ export async function GET(request: NextRequest) {
 
     // Get the assessment data (try local storage first, then Google Sheets)
     let rowData = getAssessment(logId);
+    console.log('DEBUG: Retrieved rowData from local storage:', rowData);
     
     if (!rowData) {
       try {
         rowData = await getRowById(logId);
+        console.log('DEBUG: Retrieved rowData from Google Sheets:', rowData);
       } catch (error) {
         console.log('Google Sheets not available, assessment data not found locally');
       }
     }
     
     if (!rowData) {
+      console.log('DEBUG: No rowData found for logId:', logId);
       return NextResponse.json(
         { message: 'Assessment data not found' },
         { status: 404 }
       );
     }
+    
+    console.log('DEBUG: About to generate PDF with rowData:', JSON.stringify(rowData, null, 2));
 
     // Create PDF with proper Promise handling
     const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument();
       const chunks: Buffer[] = [];
 
-      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('data', chunk => {
+        console.log('DEBUG: PDF chunk received, size:', chunk.length);
+        chunks.push(chunk);
+      });
       doc.on('end', () => {
+        console.log('DEBUG: PDF generation ended, total chunks:', chunks.length, 'total size:', chunks.reduce((sum, chunk) => sum + chunk.length, 0));
         resolve(Buffer.concat(chunks));
       });
-      doc.on('error', reject);
+      doc.on('error', (err) => {
+        console.log('DEBUG: PDF generation error:', err);
+        reject(err);
+      });
 
       // Header
       doc.fontSize(20).text('Compliance Risk Assessment Report', { align: 'center' });
