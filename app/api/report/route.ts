@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRowById, updateRowById } from '../../../lib/sheets';
 import { getAssessment, updateAssessment } from '../../../lib/localStorage';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,49 +37,53 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Create a simple PDF that actually works
-    const doc = new PDFDocument();
+    // Test PDF generation by saving to file first to verify content
+    const doc = new PDFDocument({ margin: 50 });
+    
+    // Save to file to verify content
+    const writeStream = fs.createWriteStream(`debug-${logId}.pdf`);
+    doc.pipe(writeStream);
+    
+    // Also collect chunks for response
     const chunks: Buffer[] = [];
-
     doc.on('data', chunk => chunks.push(chunk));
     
-    // Add content synchronously
+    // Add content
     doc.fontSize(20).text('Compliance Risk Assessment Report', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).text(`Generated: ${new Date().toLocaleDateString()}`);
+    doc.moveDown(2);
+    
+    doc.fontSize(16).text('Assessment Details');
+    doc.fontSize(12);
+    doc.text(`Email: ${rowData.email}`);
+    doc.text(`Country: ${rowData.country}`);
+    doc.text(`Contract Type: ${rowData.contract_type}`);
+    doc.text(`Contract Value: $${rowData.contract_value_usd}`);
+    doc.text(`Data Processing: ${rowData.data_processing ? 'Yes' : 'No'}`);
     doc.moveDown();
     
-    doc.fontSize(14).text('Assessment Details:', { underline: true });
-    doc.fontSize(12)
-       .text(`Email: ${rowData.email}`)
-       .text(`Country: ${rowData.country}`)
-       .text(`Contract Type: ${rowData.contract_type}`)
-       .text(`Contract Value: $${rowData.contract_value_usd}`)
-       .text(`Data Processing: ${rowData.data_processing ? 'Yes' : 'No'}`);
-    
+    doc.fontSize(16).text('Risk Assessment');
+    doc.fontSize(12);
+    doc.text(`Risk Level: ${rowData.level}`);
+    doc.text(`Risk Score: ${rowData.score}/10`);
     doc.moveDown();
-    doc.fontSize(14).text('Risk Assessment:', { underline: true });
-    doc.fontSize(12)
-       .text(`Risk Level: ${rowData.level}`)
-       .text(`Risk Score: ${rowData.score}/10`);
     
     if (rowData.reasons) {
-      doc.moveDown();
-      doc.fontSize(14).text('Reasons:', { underline: true });
+      doc.fontSize(16).text('Assessment Rationale');
+      doc.fontSize(12);
       const reasons = rowData.reasons.split('|');
       reasons.forEach(reason => {
-        doc.fontSize(12).text(`• ${reason}`);
+        doc.text(`• ${reason}`);
       });
     }
     
-    // End the document
     doc.end();
     
-    // Wait for completion
+    // Wait for both file write and buffer collection
     const pdfBuffer = await new Promise<Buffer>((resolve) => {
       doc.on('end', () => {
         const buffer = Buffer.concat(chunks);
         console.log('PDF DEBUG - Buffer created, size:', buffer.length);
+        console.log('PDF DEBUG - File saved as:', `debug-${logId}.pdf`);
         resolve(buffer);
       });
     });
