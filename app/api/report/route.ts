@@ -101,15 +101,19 @@ export async function GET(request: NextRequest) {
       // Don't fail the request if we can't update the status
     }
 
-    // Return PDF using standard Response instead of NextResponse
+    // Try serving the actual file we know works
     console.log('PDF DEBUG - Sending buffer of size:', pdfBuffer.length);
     
-    return new Response(pdfBuffer, {
+    // Read the debug file we know is valid and serve that instead
+    const debugFileBuffer = fs.readFileSync(`debug-${logId}.pdf`);
+    console.log('PDF DEBUG - Debug file size:', debugFileBuffer.length);
+    
+    return new NextResponse(debugFileBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="Compliance-Risk-Report-${logId}.pdf"`,
-        'Content-Length': pdfBuffer.length.toString(),
+        'Content-Length': debugFileBuffer.length.toString(),
       },
     });
 
