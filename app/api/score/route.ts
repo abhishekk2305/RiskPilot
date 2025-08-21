@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { formSubmissionSchema } from '../../../shared/schema';
 import { riskEngine } from '../../../lib/riskEngine';
 import { appendToSheet, getTimestamp } from '../../../lib/sheets';
+import { storeAssessment } from '../../../lib/localStorage';
 import { checkRateLimit } from '../../../lib/rateLimiter';
 import { maskEmail, getLastIpOctet } from '../../../lib/utils';
 import { emailNotificationService } from '../../../lib/emailNotifications';
@@ -67,7 +68,10 @@ export async function POST(request: NextRequest) {
       reasons: riskResult.reasons.join('|'), // Store as pipe-separated string
     };
 
-    // Log to Google Sheets
+    // Store locally for PDF generation
+    storeAssessment(rowData);
+    
+    // Also try to log to Google Sheets (optional)
     await appendToSheet(rowData);
 
     // Send email notification for high-risk assessments

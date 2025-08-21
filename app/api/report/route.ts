@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRowById, updateRowById } from '../../../lib/sheets';
+import { getAssessment, updateAssessment } from '../../../lib/localStorage';
 import PDFDocument from 'pdfkit';
 
 export async function GET(request: NextRequest) {
@@ -14,11 +15,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the log row data
-    const rowData = await getRowById(logId);
+    // Get the assessment data (try local storage first, then Google Sheets)
+    let rowData = getAssessment(logId);
+    
+    if (!rowData) {
+      try {
+        rowData = await getRowById(logId);
+      } catch (error) {
+        console.log('Google Sheets not available, assessment data not found locally');
+      }
+    }
+    
     if (!rowData) {
       return NextResponse.json(
-        { message: 'Log entry not found' },
+        { message: 'Assessment data not found' },
         { status: 404 }
       );
     }
@@ -85,8 +95,14 @@ export async function GET(request: NextRequest) {
 
     const pdfBuffer = Buffer.concat(chunks);
 
-    // Mark as downloaded in the sheet
-    await updateRowById(logId, { downloaded_pdf: true });
+    // Mark as downloaded (try both local storage and Google Sheets)
+    try {
+      updateAssessment(logId, { downloaded_pdf: true });
+      await updateRowById(logId, { downloaded_pdf: true });
+    } catch (error) {
+      console.error('Failed to update download status:', error);
+      // Don't fail the request if we can't update the status
+    }
 
     // Return PDF
     return new NextResponse(pdfBuffer, {
