@@ -28,14 +28,24 @@ function createNextRequest(req: any): NextRequest {
 }
 
 async function handleNextResponse(nextRes: NextResponse, res: any) {
-  const body = await nextRes.text();
-  
-  // Set headers
+  // Set headers first
   nextRes.headers.forEach((value, key) => {
     res.set(key, value);
   });
   
   res.status(nextRes.status);
+  
+  // Check if this is a PDF response based on content-type
+  const contentType = nextRes.headers.get('content-type');
+  if (contentType && contentType.includes('application/pdf')) {
+    // For PDF responses, get the binary data and send it directly
+    const buffer = Buffer.from(await nextRes.arrayBuffer());
+    res.send(buffer);
+    return;
+  }
+  
+  // For non-PDF responses, handle as before
+  const body = await nextRes.text();
   
   // Try to parse as JSON, if successful send as JSON, otherwise send as text
   try {

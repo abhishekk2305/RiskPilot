@@ -3,7 +3,7 @@ import { getRowById } from '../../../lib/sheets';
 import { getAssessment, updateAssessment } from '../../../lib/localStorage';
 import PDFDocument from 'pdfkit';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url);
     const logId = searchParams.get('logId');
