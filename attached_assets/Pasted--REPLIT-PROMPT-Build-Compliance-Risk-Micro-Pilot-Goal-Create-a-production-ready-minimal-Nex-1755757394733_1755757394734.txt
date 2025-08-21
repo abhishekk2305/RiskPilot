@@ -1,0 +1,362 @@
+📋 REPLIT PROMPT — Build “Compliance Risk Micro-Pilot”
+
+Goal: Create a production-ready, minimal Next.js web app that lets a user enter basic contractor details, instantly returns a risk score (Low/Medium/High), generates a PDF report to download, and logs pilot metrics (email, timestamps, time-to-result, repeat usage, feedback) to Google Sheets. Include a tiny admin dashboard for aggregated metrics and a 1-page case study template export.
+
+0) Project Meta
+
+Repo Name: compliance-risk-micro-pilot
+
+Stack: Next.js 14 (App Router), TypeScript, Tailwind CSS, API Routes, pdfkit for server-side PDF gen, Google Sheets logging via Google Service Account + googleapis.
+
+Deployment target: Vercel.
+
+Design: Clean, minimal, responsive. One-screen form + result. No heavy dependencies.
+
+Privacy: Store only what’s needed; explicit consent checkbox. No cookies besides Next.js defaults. Optional Plausible analytics if ENV is provided.
+
+1) Features & Pages
+Public
+
+/ (Landing + Form)
+
+Headline: “Check contractor compliance risk in under 60 seconds.”
+
+Subhead: “Enter basic contract details → get a risk score + a downloadable PDF report.”
+
+Form fields:
+
+Work Email (required) – used as pilot ID
+
+Contractor Country (required) – select list with top 30 + “Other”
+
+Contract Type (required) – Independent Contractor / Agency / Employee of Record
+
+Contract Value (required) – numeric (USD)
+
+Data Processing Needed? – Yes/No (flags GDPR)
+
+Consent checkbox (required) – “I agree to share my inputs for pilot analysis.”
+
+CTA: “Get Risk Score”
+
+On submit → POST to /api/score, show spinner, then route to Results view with score + rationale bullets.
+
+Results (same page state or /result)
+
+Show Risk Score (Low/Medium/High) and Why (3–5 bullets from rule engine).
+
+Buttons:
+
+Download PDF Report → calls /api/report?logId=<id>
+
+“Was this useful?” Yes / No → POST /api/feedback (disable after response)
+
+Small note: “This is a pilot tool. No legal advice.”
+
+Admin (simple gated)
+
+/admin
+
+Gate via secret in Authorization header or ?key= param → validate against ADMIN_KEY env.
+
+Show aggregated metrics:
+
+Users (distinct emails), Submissions, Avg time-to-result (sec), % report downloads, % “useful”
+
+Chart 1: Time to result (histogram or bar)
+
+Chart 2: Useful vs Not Useful (bar)
+
+Table: Recent 20 submissions
+
+Export buttons:
+
+CSV Export (aggregated and raw)
+
+Generate Case Study PDF (server-side; see Section 6)
+
+2) Risk Scoring (Rules Engine)
+
+Implement a transparent rules engine in lib/riskEngine.ts:
+
+Start at 0 points → map to Low (0–2), Medium (3–5), High (6+).
+
+Country:
+
+If in EU/EEA/UK and Data Processing=Yes → +3 (“GDPR exposure”)
+
+If country in ["US","CA","AU","NZ","SG"] and Contract Value <= 50k → +0
+
+Else if value > 50k → +2 (“Higher commercial exposure”)
+
+Contract Type:
+
+Independent Contractor → +2 (misclassification risk)
+
+Agency → +1
+
+EoR → +0
+
+Contract Value:
+
+100k → additional +2
+
+Overrides / Floor/Ceiling:
+
+Max 10; Min 0
+
+Return { score: number, level: "Low"|"Medium"|"High", reasons: string[] } with 3–5 rationale bullets.
+
+3) Data Logging & Metrics
+
+We need durable logging to Google Sheets using a Service Account.
+
+Sheet Structure (single sheet named pilot_logs) with columns:
+
+id, timestamp_iso, email, country, contract_type, contract_value_usd, data_processing, 
+score, level, time_to_result_ms, downloaded_pdf (true/false), feedback (yes/no/empty), user_agent, ip_last_octet
+
+
+At submission (POST /api/score):
+
+Start timer server-side.
+
+Compute risk via riskEngine.
+
+Log row with blank time_to_result_ms → respond with {id, level, reasons}.
+
+On render of result client-side: immediately POST /api/result_ready with {id} to record time_to_result_ms (server computes elapsed from start).
+
+On PDF download (GET /api/report?id=...) set downloaded_pdf=true.
+
+On feedback (POST /api/feedback) set feedback=yes/no.
+
+Store only last octet of IP (privacy).
+
+Google Auth:
+
+Use googleapis with Service Account creds in env:
+
+GOOGLE_SA_EMAIL
+
+GOOGLE_SA_KEY (escaped newlines)
+
+GOOGLE_SHEET_ID
+
+Helper: lib/sheets.ts with appendRow, updateRowById, getAggregates.
+
+4) PDF Generation
+
+Use pdfkit in /api/report with the log row data.
+
+Include:
+
+Header: App name + date
+
+Section: Summary (email, country, contract type, value)
+
+Risk Level big, with color hint (text only; keep server-safe)
+
+“Why” bullets from reasons
+
+Footer: “Pilot tool – not legal advice”
+
+Stream as application/pdf filename Compliance-Risk-Report-<id>.pdf.
+
+5) Admin Aggregations & Charts
+
+/api/admin/aggregates (auth required): compute
+
+Total submissions, distinct emails, avg time_to_result (ms → seconds), % downloads, % useful.
+
+Distribution for histogram buckets: <15s, 15–30s, 30–60s, 60–120s, >120s.
+
+Frontend /admin:
+
+Use Chart.js for two charts (histogram + useful bar).
+
+Table shows last 20 rows (email masked as a***@domain.com).
+
+6) Case Study PDF (1-pager) — /api/case-study
+
+Auth required.
+
+Build via pdfkit with data from aggregates:
+
+Title: “Contractor Compliance Risk Micro-Pilot — Case Study (Month YYYY)”
+
+Problem → Hypothesis → Pilot Setup (N users) → Results (avg time-to-result, % downloaded, % useful) → Next steps
+
+Insert a simple bar chart using ASCII bars or just numbers (no image libs needed).
+
+Stream as application/pdf filename Case-Study-Micro-Pilot.pdf.
+
+7) Security, Abuse & Privacy
+
+Admin key: ADMIN_KEY (env). All admin APIs require header Authorization: Bearer <ADMIN_KEY> or query ?key=.
+
+Rate-limit public APIs per IP/email basic (e.g., 10 req / 10 min) via in-memory map or simple lru-cache. Return 429 politely.
+
+Mask email on admin UI. Store only necessary fields; no cookies beyond defaults.
+
+Add /privacy static page explaining data usage for pilot.
+
+8) Project Structure
+compliance-risk-micro-pilot/
+├─ app/
+│  ├─ globals.css
+│  ├─ layout.tsx
+│  ├─ page.tsx                # Landing + Form + Results state
+│  ├─ admin/page.tsx          # Admin dashboard (fetches aggregates)
+│  ├─ privacy/page.tsx
+│  └─ api/
+│     ├─ score/route.ts       # POST: compute score, append row
+│     ├─ result_ready/route.ts# POST: mark time_to_result
+│     ├─ report/route.ts      # GET: stream PDF report + mark downloaded
+│     ├─ feedback/route.ts    # POST: yes/no feedback
+│     └─ admin/
+│        ├─ aggregates/route.ts # secured
+│        ├─ rows/route.ts       # list recent rows (secured)
+│        └─ case-study/route.ts # secured PDF
+├─ lib/
+│  ├─ riskEngine.ts
+│  ├─ sheets.ts
+│  ├─ auth.ts                 # admin key check
+│  ├─ rateLimiter.ts
+│  └─ utils.ts                # email mask, ip trim
+├─ components/
+│  ├─ Form.tsx
+│  ├─ ResultCard.tsx
+│  ├─ MetricCard.tsx
+│  └─ Chart.tsx
+├─ public/
+│  └─ favicon.ico
+├─ .env.example
+├─ next.config.mjs
+├─ tailwind.config.ts
+├─ package.json
+├─ README.md
+└─ vercel.json
+
+9) UI Copy (use as default text)
+
+Hero Title: “Contractor Compliance Risk — in 60 seconds.”
+
+Hero Sub: “Instant risk score and PDF report. Pilot tool for HR/Compliance teams.”
+
+CTA Button: “Get Risk Score”
+
+Consent Checkbox: “I agree to share my inputs for pilot analysis.”
+
+Results Title: “Risk Level: <Low|Medium|High>”
+
+Why Bullets Prefix: “Why we scored this way:”
+
+Feedback Prompt: “Was this useful?” [Yes] [No]
+
+Footer: “Pilot only—this is not legal advice.”
+
+10) Environment Variables
+
+Create .env.local and support .env:
+
+GOOGLE_SA_EMAIL=
+GOOGLE_SA_KEY=        # JSON key with \n escaped
+GOOGLE_SHEET_ID=
+ADMIN_KEY=
+PLAUSIBLE_DOMAIN=     # optional
+PLAUSIBLE_SCRIPT_URL= # optional
+
+11) Packages
+
+next, react, react-dom, typescript, @types/node
+
+tailwindcss, postcss, autoprefixer
+
+googleapis
+
+pdfkit
+
+chart.js
+
+zod (validate input)
+
+lru-cache (rate limiting)
+
+date-fns
+
+12) Implementation Notes
+
+Use App Router with server actions or API routes under app/api/*/route.ts.
+
+All inputs validated server-side with zod.
+
+Time-to-result:
+
+Save start timestamp in a Map<string,number> keyed by id (or store it as a column “start_ts” in Sheets if you prefer). When /result_ready hits, compute delta and update the row.
+
+Generate unique id via crypto.randomUUID().
+
+Google Sheets: Use spreadsheets.values.append for new rows; spreadsheets.values.update to update by row index. Keep an in-memory cache mapping id→rowIndex for recent entries; if not found, scan by id (bounded to last 500 rows).
+
+Admin charts: fetch /api/admin/aggregates and render with Chart.js.
+
+PDF: Use pdfkit with standard fonts; keep < 200KB.
+
+13) README.md
+
+Include:
+
+2-min overview
+
+How to run locally
+
+ENV setup steps (how to create Google Service Account + Sheet + share with SA email)
+
+Deploy to Vercel steps
+
+Pilot instructions (how to recruit 5–10 users)
+
+Admin usage (/admin?key=...)
+
+Case Study export instructions
+
+Privacy statement
+
+14) Acceptance Criteria (must pass)
+
+✅ Submitting the form returns a risk score with reasons in < 2s locally.
+
+✅ Google Sheets receives a row for each submission with a unique id.
+
+✅ Time-to-result is recorded when the results are rendered.
+
+✅ PDF Report downloads and the log toggles downloaded_pdf=true.
+
+✅ Feedback Yes/No updates the same row.
+
+✅ Admin page shows aggregates, 2 charts, last 20 rows (email masked).
+
+✅ Case Study PDF streams with the latest aggregate numbers.
+
+✅ Rate limiting returns 429 after configured threshold.
+
+✅ No PII beyond email; IP last octet only.
+
+✅ Build on Vercel without extra config.
+
+15) Bonus (only if time allows; behind flags)
+
+Add PLAUSIBLE_DOMAIN support to load Plausible script when provided.
+
+Add CSV export endpoints for raw and aggregated data.
+
+Now, generate the full project with this structure, code every file, include Tailwind styling, and produce a runnable app. After generating, list the next steps to:
+
+Add Google Service Account + Sheet.
+
+Set ENV values on Replit and Vercel.
+
+Deploy to Vercel and test end-to-end with 1 submission.
+
+End of Prompt.
