@@ -47,8 +47,16 @@ export function getTimestamp(): string {
 
 export async function appendToSheet(rowData: Omit<SheetRow, 'reasons'> & { reasons: string }): Promise<void> {
   try {
-    const sheets = getSheets();
+    // Check if Google Sheets is configured
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    const googleServiceAccount = process.env.GOOGLE_SA_EMAIL;
+    
+    if (!spreadsheetId || !googleServiceAccount) {
+      console.log('Google Sheets not configured, skipping logging. Set GOOGLE_SHEET_ID and GOOGLE_SA_EMAIL to enable.');
+      return; // Don't fail the request if Google Sheets isn't configured
+    }
+
+    const sheets = getSheets();
 
     const values = [
       [
@@ -77,9 +85,11 @@ export async function appendToSheet(rowData: Omit<SheetRow, 'reasons'> & { reaso
       requestBody: { values },
     });
 
+    console.log('Successfully appended to Google Sheets');
   } catch (error) {
     console.error('Error appending to sheet:', error);
-    throw new Error('Failed to log data to Google Sheets');
+    // Don't throw error - log it and continue. This prevents Google Sheets issues from breaking the core functionality
+    console.log('Continuing without Google Sheets logging...');
   }
 }
 
