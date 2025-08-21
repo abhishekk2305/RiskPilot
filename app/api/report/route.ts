@@ -37,16 +37,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Test PDF generation by saving to file first to verify content
+    // Create PDF with correct buffer handling  
+    const chunks: Buffer[] = [];
+    
     const doc = new PDFDocument({ margin: 50 });
     
-    // Save to file to verify content
-    const writeStream = fs.createWriteStream(`debug-${logId}.pdf`);
-    doc.pipe(writeStream);
-    
-    // Also collect chunks for response
-    const chunks: Buffer[] = [];
-    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('data', (chunk) => {
+      chunks.push(chunk);
+    });
     
     // Add content
     doc.fontSize(20).text('Compliance Risk Assessment Report', { align: 'center' });
@@ -76,14 +74,20 @@ export async function GET(request: NextRequest) {
       });
     }
     
+    // Close the document
     doc.end();
     
-    // Wait for both file write and buffer collection
+    // Wait for PDF completion and get buffer
     const pdfBuffer = await new Promise<Buffer>((resolve) => {
       doc.on('end', () => {
         const buffer = Buffer.concat(chunks);
-        console.log('PDF DEBUG - Buffer created, size:', buffer.length);
-        console.log('PDF DEBUG - File saved as:', `debug-${logId}.pdf`);
+        console.log('PDF DEBUG - Final buffer size:', buffer.length);
+        console.log('PDF DEBUG - First 50 bytes:', buffer.subarray(0, 50).toString());
+        
+        // Save debug file to verify content
+        fs.writeFileSync(`debug-${logId}.pdf`, buffer);
+        console.log('PDF DEBUG - Saved debug file');
+        
         resolve(buffer);
       });
     });
