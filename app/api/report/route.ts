@@ -86,14 +86,13 @@ export async function GET(request: NextRequest) {
        .text('DISCLAIMER: This is a pilot tool and does not constitute legal advice.', { align: 'center' })
        .text('Please consult with qualified legal professionals for compliance matters.', { align: 'center' });
 
-    doc.end();
-
     // Wait for PDF generation to complete
-    await new Promise<void>((resolve) => {
-      doc.on('end', resolve);
+    const pdfBuffer = await new Promise<Buffer>((resolve) => {
+      doc.on('end', () => {
+        resolve(Buffer.concat(chunks));
+      });
+      doc.end();
     });
-
-    const pdfBuffer = Buffer.concat(chunks);
 
     // Mark as downloaded (try both local storage and Google Sheets)
     try {
