@@ -152,22 +152,23 @@ export default function ResultCard({ result, onNewAssessment }: ResultCardProps)
           <div className="border-t border-gray-200 pt-6">
             <p className="text-sm text-gray-700 mb-4">Was this useful?</p>
             <div className="flex space-x-4">
-              <button
+              <div
                 onClick={() => handleFeedback('yes')}
-                className="flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                className="flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium cursor-pointer"
                 data-testid="feedback-yes"
+                style={{ backgroundColor: '#16a34a', color: 'white' }}
               >
                 <ThumbsUp className="mr-2 h-4 w-4" />
-                Yes
-              </button>
-              <button
+                <span>YES</span>
+              </div>
+              <div
                 onClick={() => handleFeedback('no')}
-                className="flex items-center px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium border border-gray-300"
+                className="flex items-center px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium border border-gray-300 cursor-pointer"
                 data-testid="feedback-no"
               >
                 <ThumbsDown className="mr-2 h-4 w-4" />
-                No
-              </button>
+                <span>NO</span>
+              </div>
             </div>
           </div>
         ) : (
