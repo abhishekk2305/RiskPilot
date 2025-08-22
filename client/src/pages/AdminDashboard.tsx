@@ -80,7 +80,8 @@ export default function AdminDashboard() {
 
       if (timeSeriesRes.ok) {
         const timeSeriesData = await timeSeriesRes.json();
-        setTimeSeriesData(timeSeriesData);
+        console.log('Time series data received:', timeSeriesData);
+        setTimeSeriesData(timeSeriesData.data);  // Extract the 'data' property
       }
 
       if (trendsRes.ok) {
@@ -147,7 +148,8 @@ export default function AdminDashboard() {
       });
       if (response.ok) {
         const data = await response.json();
-        setTimeSeriesData(data);
+        console.log('Metric change data:', data);
+        setTimeSeriesData(data.data);  // Extract the 'data' property
       }
     } catch (error) {
       console.error('Error loading time series:', error);
@@ -162,7 +164,8 @@ export default function AdminDashboard() {
       });
       if (response.ok) {
         const data = await response.json();
-        setTimeSeriesData(data);
+        console.log('Period change data:', data);
+        setTimeSeriesData(data.data);  // Extract the 'data' property
       }
     } catch (error) {
       console.error('Error loading time series:', error);
