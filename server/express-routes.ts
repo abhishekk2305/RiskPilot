@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import { formSubmissionSchema, feedbackSchema, resultReadySchema } from '../shared/schema';
 import { riskEngine } from '../lib/riskEngine';
 import { appendToSheet, getTimestamp, updateRowById, getRowById, getPilotAggregates, getRecentRows } from '../lib/sheets';
-import { storeAssessment, getAssessment, updateAssessment, getRecentAssessments } from '../lib/localStorage';
+import { storeAssessment, getAssessment, updateAssessment, getRecentAssessments, getAllAssessments } from '../lib/localStorage';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { maskEmail, getLastIpOctet } from '../lib/utils';
 import { emailNotificationService } from '../lib/emailNotifications';
@@ -433,36 +433,51 @@ export async function registerExpressRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      const assessments = await getStoredAssessments();
-      const grouped: { [key: string]: number } = {};
+      const { metric = 'submissions', period = 'daily', days = '7' } = req.query;
+      const assessments = getAllAssessments();
+      const numDays = parseInt(days as string) || 7;
       
-      // Group by date (last 7 days)
-      const dates = Array.from({ length: 7 }, (_, i) => {
+      // Create date range
+      const dates = Array.from({ length: numDays }, (_, i) => {
         const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
+        date.setDate(date.getDate() - (numDays - 1 - i));
         return date.toISOString().split('T')[0];
       });
       
+      const grouped: { [key: string]: number } = {};
       dates.forEach(date => grouped[date] = 0);
       
+      // Group assessments by date (handle both timestamp formats)
       assessments.forEach(assessment => {
-        if (assessment.timestamp) {
-          const date = assessment.timestamp.split('T')[0];
-          if (grouped[date] !== undefined) {
+        const timestamp = assessment.timestamp || assessment.timestamp_iso;
+        if (timestamp) {
+          const date = timestamp.split('T')[0];
+          if (grouped.hasOwnProperty(date)) {
             grouped[date]++;
           }
         }
       });
       
-      const data = dates.map(date => ({
-        date,
-        submissions: grouped[date] || 0
-      }));
+      // Format data for Chart.js
+      const chartData = {
+        labels: dates.map(date => {
+          const d = new Date(date);
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }),
+        datasets: [{
+          label: metric === 'submissions' ? 'Daily Submissions' : 'Daily Activity',
+          data: dates.map(date => grouped[date] || 0),
+          borderColor: 'rgb(59, 130, 246)',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.1
+        }]
+      };
       
-      res.json({ data, message: 'Success' });
+      res.json({ data: chartData, message: 'Success' });
     } catch (error) {
       console.error('Time series error:', error);
-      res.json({ data: [], message: 'Time series data error' });
+      res.json({ data: { labels: [], datasets: [] }, message: 'Time series data error' });
     }
   });
 
@@ -473,7 +488,7 @@ export async function registerExpressRoutes(app: Express): Promise<Server> {
     }
     
     try {
-      const assessments = await getStoredAssessments();
+      const assessments = getAllAssessments();
       
       // Calculate trend data
       const riskLevels = assessments.reduce((acc: { [key: string]: number }, assessment) => {

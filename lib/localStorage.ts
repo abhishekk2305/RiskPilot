@@ -91,9 +91,11 @@ export function updateAssessment(id: string, updates: Partial<AssessmentData>): 
 
 export function getAllAssessments(): AssessmentData[] {
   const assessments = loadAssessments();
-  return assessments.sort((a, b) => 
-    new Date(b.timestamp_iso).getTime() - new Date(a.timestamp_iso).getTime()
-  );
+  return assessments.sort((a, b) => {
+    const aTime = a.timestamp_iso || a.timestamp || '1970-01-01';
+    const bTime = b.timestamp_iso || b.timestamp || '1970-01-01';
+    return new Date(bTime).getTime() - new Date(aTime).getTime();
+  });
 }
 
 export function getRecentAssessments(limit: number = 20): AssessmentData[] {

@@ -4,21 +4,25 @@ import React, { useEffect, useRef } from 'react';
 import { Card, CardContent } from '../client/src/components/ui/card';
 
 interface ChartProps {
-  type: 'bar' | 'doughnut';
-  title: string;
+  type: 'bar' | 'doughnut' | 'line';
+  title?: string;
   data: {
     labels: string[];
     datasets: Array<{
       label?: string;
       data: number[];
-      backgroundColor: string | string[];
+      backgroundColor?: string | string[];
+      borderColor?: string | string[];
       borderRadius?: number;
       borderWidth?: number;
+      fill?: boolean;
+      tension?: number;
     }>;
   };
+  options?: any;
 }
 
-export default function Chart({ type, title, data }: ChartProps) {
+export default function Chart({ type, title, data, options = {} }: ChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<any>(null);
 
@@ -47,6 +51,7 @@ export default function Chart({ type, title, data }: ChartProps) {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          ...options,
         },
       };
 
