@@ -106,7 +106,7 @@
     "t_backend_ms": 0,
     "time_to_result_ms": 390,
     "downloaded_pdf": false,
-    "feedback": null,
+    "feedback": "yes",
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
     "ip_last_octet": "194",
     "reasons": "Complex regulatory environment requires careful navigation|Independent contractor classification requires careful documentation"
