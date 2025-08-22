@@ -87,7 +87,7 @@ ADMIN_KEY=your-secret
 
 ---
 
-🗺 Roadmap
+## 🗺 Roadmap
 
 Now: MVP + pilot analytics
 
@@ -97,13 +97,13 @@ Later: Integrations with HRIS/payroll; audit logs; GDPR/SOC2 trust features
 
 ---
 
-📄 License
+## 📄 License
 
 MIT — see LICENSE
 
 ---
 
-🙌 A Note from the Maker
+## 🙌 A Note from the Maker
 
 RiskPilot started as an experiment: could a single person ship, measure, and learn from a compliance tool MVP in under two weeks?
 This repo documents that journey. Feedback is welcome — both on the code and the product approach.
@@ -111,11 +111,4 @@ This repo documents that journey. Feedback is welcome — both on the code and t
 
 ---
 
-✨ This version positions you as a **PM who knows SaaS storytelling**:  
-- It starts with the *why* (the real-world pain point).  
-- It explains the solution in plain English.  
-- It highlights **measurable KPIs** (PM thinking).  
-- It closes with roadmap + human touch (“A Note from the Maker”).  
-
----
 
