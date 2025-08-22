@@ -42,7 +42,7 @@ function checkAdminAuthExpress(req: any) {
   
   const token = authHeader.slice(7);
   // Simple admin token check - in production, implement proper JWT validation
-  const validToken = process.env.ADMIN_TOKEN || 'admin123';
+  const validToken = process.env.ADMIN_KEY || 'admin123';
   return { success: token === validToken };
 }
 
@@ -168,7 +168,13 @@ async function handleResultReady(req: any) {
       finalTimeToResult = Date.now() - startTime;
     }
     
-    await updateRowById(id, { time_to_result_ms: finalTimeToResult });
+    // Try to update sheets, fall back to local storage
+    try {
+      await updateRowById(id, { time_to_result_ms: finalTimeToResult });
+    } catch (sheetsError) {
+      console.warn('Sheets update failed, using local storage:', sheetsError);
+      updateAssessment(id, { time_to_result_ms: finalTimeToResult });
+    }
     
     // Clean up server-side timing
     startTimes.delete(id);
@@ -314,8 +320,13 @@ async function handleFeedback(req: any) {
 
     const { id, feedback } = validationResult.data;
 
-    // Update the row with feedback
-    await updateRowById(id, { feedback });
+    // Try to update sheets, fall back to local storage  
+    try {
+      await updateRowById(id, { feedback });
+    } catch (sheetsError) {
+      console.warn('Sheets update failed, using local storage:', sheetsError);
+      updateAssessment(id, { feedback });
+    }
 
     return jsonResponse({ success: true });
 
