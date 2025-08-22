@@ -148,7 +148,7 @@ export default function ResultCard({ result, onNewAssessment }: ResultCardProps)
             <div className="flex space-x-4">
               <Button
                 onClick={() => handleFeedback('yes')}
-                className="px-6 py-2 bg-success text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <ThumbsUp className="mr-2 h-4 w-4" />
                 Yes
@@ -166,7 +166,7 @@ export default function ResultCard({ result, onNewAssessment }: ResultCardProps)
         ) : (
           <div className="border-t border-gray-200 pt-6">
             <div className="text-sm text-gray-600 flex items-center">
-              <Check className="text-success mr-2 h-4 w-4" />
+              <Check className="text-green-600 mr-2 h-4 w-4" />
               Thank you for your feedback!
             </div>
           </div>

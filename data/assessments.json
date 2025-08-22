@@ -74,5 +74,23 @@
     "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
     "ip_last_octet": "194",
     "reasons": "Moderate regulatory complexity|GDPR compliance required for EU data processing|Independent contractor classification requires careful documentation"
+  },
+  {
+    "id": "b866c271-ddb5-4368-867a-79f7f2123268",
+    "timestamp_iso": "2025-08-22T16:00:20.292Z",
+    "email": "mahimachaudhary@gmail.com",
+    "country": "CA",
+    "contract_type": "independent",
+    "contract_value_usd": 1000,
+    "data_processing": true,
+    "score": 3,
+    "level": "Low",
+    "t_backend_ms": 1,
+    "time_to_result_ms": 388,
+    "downloaded_pdf": false,
+    "feedback": null,
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "ip_last_octet": "194",
+    "reasons": "Stable jurisdiction with established frameworks|Independent contractor classification requires careful documentation"
   }
 ]
