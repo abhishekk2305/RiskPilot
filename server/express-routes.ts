@@ -3,9 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 
 // Import the actual API logic functions, but not Next.js handlers
-import { formSubmissionSchema, feedbackSchema } from '../shared/schema';
+import { formSubmissionSchema, feedbackSchema, resultReadySchema } from '../shared/schema';
 import { riskEngine } from '../lib/riskEngine';
-import { appendToSheet, getTimestamp, updateRowById, getRowById, getAggregates, getRecentRows } from '../lib/sheets';
+import { appendToSheet, getTimestamp, updateRowById, getRowById, getPilotAggregates, getRecentRows } from '../lib/sheets';
 import { storeAssessment, getAssessment, updateAssessment } from '../lib/localStorage';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { maskEmail, getLastIpOctet } from '../lib/utils';
@@ -27,8 +27,8 @@ function errorResponse(message: string, status = 500, errors?: any) {
   return { data: { message, errors }, status };
 }
 
-// Validation schemas
-const resultReadySchema = z.object({
+// Legacy validation schema for existing route
+const legacyResultReadySchema = z.object({
   id: z.string(),
 });
 
@@ -79,6 +79,9 @@ async function handleScore(req: any) {
       dataProcessing: formData.data_processing,
     });
 
+    // Calculate backend processing time
+    const backendTime = Date.now() - startTime;
+
     // Prepare row data for Google Sheets
     const rowData = {
       id,
@@ -90,7 +93,8 @@ async function handleScore(req: any) {
       data_processing: formData.data_processing,
       score: riskResult.score,
       level: riskResult.level,
-      time_to_result_ms: null, // Will be filled when result_ready is called
+      t_backend_ms: backendTime,
+      time_to_result_ms: null, // Will be filled when result-ready is called
       downloaded_pdf: false,
       feedback: null,
       user_agent: req.headers['user-agent'] || '',
@@ -138,11 +142,50 @@ async function handleScore(req: any) {
   }
 }
 
+// New result-ready handler with tFirstResultMs support
 async function handleResultReady(req: any) {
   try {
     const body = req.body;
     
     const validationResult = resultReadySchema.safeParse(body);
+    if (!validationResult.success) {
+      return errorResponse('Invalid input data', 400);
+    }
+
+    const { id, tFirstResultMs } = validationResult.data;
+    
+    let finalTimeToResult: number;
+    
+    if (tFirstResultMs) {
+      // Use client-provided timing
+      finalTimeToResult = tFirstResultMs;
+    } else {
+      // Fallback to server-side timing if available
+      const startTime = startTimes.get(id);
+      if (!startTime) {
+        return errorResponse('Start time not found for this ID and no client timing provided', 404);
+      }
+      finalTimeToResult = Date.now() - startTime;
+    }
+    
+    await updateRowById(id, { time_to_result_ms: finalTimeToResult });
+    
+    // Clean up server-side timing
+    startTimes.delete(id);
+    
+    return jsonResponse({ success: true });
+  } catch (error) {
+    console.error('Result ready API error:', error);
+    return errorResponse('Internal server error');
+  }
+}
+
+// Legacy result_ready handler for existing route compatibility
+async function handleLegacyResultReady(req: any) {
+  try {
+    const body = req.body;
+    
+    const validationResult = legacyResultReadySchema.safeParse(body);
     if (!validationResult.success) {
       return errorResponse('Invalid input data', 400);
     }
@@ -165,25 +208,39 @@ async function handleResultReady(req: any) {
     return jsonResponse({ success: true });
 
   } catch (error) {
-    console.error('Result ready API error:', error);
+    console.error('Legacy result ready API error:', error);
     return errorResponse('Internal server error');
   }
 }
 
 async function handleReport(req: any, res: any) {
   try {
-    const { logId } = req.query;
+    const { id } = req.query;
 
-    if (!logId) {
-      res.status(400).send('Missing logId parameter');
+    if (!id) {
+      res.status(400).send('Missing id parameter');
       return;
     }
 
+    // Mark as downloaded BEFORE generating the PDF
+    try {
+      await updateRowById(id, { downloaded_pdf: true });
+    } catch (error) {
+      console.log('Failed to update downloaded status in sheets:', error);
+    }
+
+    // Also update local storage
+    try {
+      updateAssessment(id, { downloaded_pdf: true });
+    } catch (error) {
+      console.log('Failed to update local status');
+    }
+
     // Get the assessment data
-    let rowData = getAssessment(logId);
+    let rowData = getAssessment(id);
     if (!rowData) {
       try {
-        rowData = await getRowById(logId);
+        rowData = await getRowById(id);
       } catch (error) {
         console.log('Google Sheets not available');
       }
@@ -233,17 +290,10 @@ async function handleReport(req: any, res: any) {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
     });
 
-    // Mark as downloaded
-    try {
-      updateAssessment(logId, { downloaded_pdf: true });
-    } catch (error) {
-      console.log('Failed to update status');
-    }
-
     // Return as file download
     res.set({
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="report-${logId}.pdf"`,
+      'Content-Disposition': `attachment; filename="Compliance-Risk-Report-${id}.pdf"`,
     });
     res.send(buffer);
 
@@ -283,8 +333,8 @@ async function handleAdminAggregates(req: any) {
       return errorResponse('Unauthorized', 401);
     }
 
-    // Get aggregated data
-    const aggregates = await getAggregates();
+    // Get pilot aggregates data in the required format
+    const aggregates = await getPilotAggregates();
 
     return jsonResponse(aggregates);
 
@@ -326,7 +376,14 @@ export async function registerExpressRoutes(app: Express): Promise<Server> {
     res.status(result.status).json(result.data);
   });
 
+  // Legacy route for compatibility
   app.post('/api/result_ready', async (req, res) => {
+    const result = await handleLegacyResultReady(req);
+    res.status(result.status).json(result.data);
+  });
+
+  // New pilot metrics route
+  app.post('/api/result-ready', async (req, res) => {
     const result = await handleResultReady(req);
     res.status(result.status).json(result.data);
   });
@@ -384,12 +441,26 @@ export async function registerExpressRoutes(app: Express): Promise<Server> {
     res.json({ data: {}, message: 'Case study not implemented yet' });
   });
 
+  // Pilot aggregates CSV export
   app.get('/api/admin/export-aggregated', async (req, res) => {
     const authResult = checkAdminAuthExpress(req);
     if (!authResult.success) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    res.json({ message: 'Aggregated export not implemented yet' });
+    
+    try {
+      const aggregates = await getPilotAggregates();
+      
+      // Create CSV content for aggregates
+      const csvContent = `submissions,distinctUsers,repeatUsers,avgTimeToResultMs,pctDownloaded,pctUseful\n${aggregates.submissions},${aggregates.distinctUsers},${aggregates.repeatUsers},${aggregates.avgTimeToResultMs},${aggregates.pctDownloaded},${aggregates.pctUseful}`;
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="Aggregates.csv"');
+      res.send(csvContent);
+    } catch (error) {
+      console.error('Error exporting aggregates:', error);
+      res.status(500).json({ message: 'Failed to export aggregates' });
+    }
   });
 
   app.get('/api/admin/notifications', async (req, res) => {

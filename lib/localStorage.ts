@@ -9,6 +9,7 @@ interface AssessmentData {
   data_processing: boolean;
   score: number;
   level: string;
+  t_backend_ms: number | null;
   time_to_result_ms: number | null;
   downloaded_pdf: boolean;
   feedback: string | null;

@@ -58,6 +58,10 @@ export default function Form({ onSuccess }: FormProps) {
     setIsSubmitting(true);
     
     try {
+      // Create temporary ID and store submit time
+      const tempId = crypto.randomUUID();
+      sessionStorage.setItem(`submitAt:${tempId}`, Date.now().toString());
+
       const response = await fetch('/api/score', {
         method: 'POST',
         headers: {
@@ -74,14 +78,12 @@ export default function Form({ onSuccess }: FormProps) {
       const result: RiskResult = await response.json();
       setResultId(result.id);
       
-      // Notify that results are ready (for time tracking)
-      await fetch('/api/result_ready', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id: result.id }),
-      });
+      // Move timing data from temp ID to actual result ID
+      const submitAtTemp = sessionStorage.getItem(`submitAt:${tempId}`);
+      if (submitAtTemp) {
+        sessionStorage.setItem(`submitAt:${result.id}`, submitAtTemp);
+        sessionStorage.removeItem(`submitAt:${tempId}`);
+      }
 
       onSuccess(result);
 
@@ -212,6 +214,11 @@ export default function Form({ onSuccess }: FormProps) {
           {form.formState.errors.consent && (
             <p className="text-sm text-danger">{form.formState.errors.consent.message}</p>
           )}
+          
+          {/* Pilot metrics consent notice */}
+          <div className="text-xs text-gray-500 mt-2 text-center">
+            Pilot only — by submitting, you consent to anonymous usage analytics.
+          </div>
 
           {/* Submit Button */}
           <Button

@@ -11,6 +11,7 @@ export const riskAssessmentSchema = z.object({
   data_processing: z.boolean(),
   score: z.number().min(0).max(10),
   level: z.enum(["Low", "Medium", "High"]),
+  t_backend_ms: z.number().nullable(),
   time_to_result_ms: z.number().nullable(),
   downloaded_pdf: z.boolean().default(false),
   feedback: z.enum(["yes", "no"]).nullable().default(null),
@@ -22,6 +23,7 @@ export const riskAssessmentSchema = z.object({
 export const insertRiskAssessmentSchema = riskAssessmentSchema.omit({
   id: true,
   timestamp_iso: true,
+  t_backend_ms: true,
   time_to_result_ms: true,
   downloaded_pdf: true,
   feedback: true,
@@ -58,8 +60,18 @@ export const feedbackSchema = z.object({
   feedback: z.enum(["yes", "no"]),
 });
 
-// Admin aggregates schema
+// Admin aggregates schema - pilot metrics format
 export const adminAggregatesSchema = z.object({
+  submissions: z.number(),
+  distinctUsers: z.number(),
+  repeatUsers: z.number(),
+  avgTimeToResultMs: z.number(),
+  pctDownloaded: z.number(),
+  pctUseful: z.number(),
+});
+
+// Legacy aggregates schema for existing features
+export const legacyAdminAggregatesSchema = z.object({
   totalUsers: z.number(),
   totalSubmissions: z.number(),
   avgTimeToResult: z.number(),
@@ -79,9 +91,17 @@ export const adminAggregatesSchema = z.object({
   }),
 });
 
+// Add result ready schema for timing
+export const resultReadySchema = z.object({
+  id: z.string(),
+  tFirstResultMs: z.number().optional(),
+});
+
 export type RiskAssessment = z.infer<typeof riskAssessmentSchema>;
 export type InsertRiskAssessment = z.infer<typeof insertRiskAssessmentSchema>;
 export type FormSubmission = z.infer<typeof formSubmissionSchema>;
 export type RiskResult = z.infer<typeof riskResultSchema>;
 export type Feedback = z.infer<typeof feedbackSchema>;
 export type AdminAggregates = z.infer<typeof adminAggregatesSchema>;
+export type LegacyAdminAggregates = z.infer<typeof legacyAdminAggregatesSchema>;
+export type ResultReady = z.infer<typeof resultReadySchema>;

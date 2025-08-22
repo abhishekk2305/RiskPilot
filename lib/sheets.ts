@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import type { AdminAggregates } from '../shared/schema';
+import type { AdminAggregates, LegacyAdminAggregates } from '../shared/schema';
 
 const SHEET_NAME = 'pilot_logs';
 
@@ -13,6 +13,7 @@ interface SheetRow {
   data_processing: boolean;
   score: number;
   level: string;
+  t_backend_ms: number | null;
   time_to_result_ms: number | null;
   downloaded_pdf: boolean;
   feedback: string | null;
@@ -45,7 +46,7 @@ export function getTimestamp(): string {
   return new Date().toISOString();
 }
 
-export async function appendToSheet(rowData: Omit<SheetRow, 'reasons'> & { reasons: string }): Promise<void> {
+export async function appendToSheet(rowData: SheetRow): Promise<void> {
   try {
     // Check if Google Sheets is configured
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
@@ -69,6 +70,7 @@ export async function appendToSheet(rowData: Omit<SheetRow, 'reasons'> & { reaso
         rowData.data_processing,
         rowData.score,
         rowData.level,
+        rowData.t_backend_ms,
         rowData.time_to_result_ms,
         rowData.downloaded_pdf,
         rowData.feedback,
@@ -80,7 +82,7 @@ export async function appendToSheet(rowData: Omit<SheetRow, 'reasons'> & { reaso
 
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: `${SHEET_NAME}!A:O`,
+      range: `${SHEET_NAME}!A:P`,
       valueInputOption: 'RAW',
       requestBody: { values },
     });
@@ -121,9 +123,10 @@ export async function updateRowById(id: string, updates: Partial<SheetRow>): Pro
 
     // Column mapping
     const columnMap: Record<string, string> = {
-      time_to_result_ms: 'J',
-      downloaded_pdf: 'K',
-      feedback: 'L',
+      t_backend_ms: 'J',
+      time_to_result_ms: 'K',
+      downloaded_pdf: 'L',
+      feedback: 'M',
     };
 
     // Update specific columns
@@ -154,7 +157,7 @@ export async function getRowById(id: string): Promise<SheetRow | null> {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SHEET_NAME}!A:O`,
+      range: `${SHEET_NAME}!A:P`,
     });
 
     const rows = response.data.values || [];
@@ -174,12 +177,13 @@ export async function getRowById(id: string): Promise<SheetRow | null> {
       data_processing: foundRow[6] === 'true',
       score: parseInt(foundRow[7]) || 0,
       level: foundRow[8],
-      time_to_result_ms: foundRow[9] ? parseInt(foundRow[9]) : null,
-      downloaded_pdf: foundRow[10] === 'true',
-      feedback: foundRow[11] || null,
-      user_agent: foundRow[12] || '',
-      ip_last_octet: foundRow[13] || '',
-      reasons: foundRow[14] || '',
+      t_backend_ms: foundRow[9] ? parseInt(foundRow[9]) : null,
+      time_to_result_ms: foundRow[10] ? parseInt(foundRow[10]) : null,
+      downloaded_pdf: foundRow[11] === 'true',
+      feedback: foundRow[12] || null,
+      user_agent: foundRow[13] || '',
+      ip_last_octet: foundRow[14] || '',
+      reasons: foundRow[15] || '',
     };
 
   } catch (error) {
@@ -195,7 +199,7 @@ export async function getRecentRows(limit: number = 20): Promise<SheetRow[]> {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SHEET_NAME}!A:O`,
+      range: `${SHEET_NAME}!A:P`,
     });
 
     const rows = response.data.values || [];
@@ -213,12 +217,13 @@ export async function getRecentRows(limit: number = 20): Promise<SheetRow[]> {
       data_processing: row[6] === 'true',
       score: parseInt(row[7]) || 0,
       level: row[8] || '',
-      time_to_result_ms: row[9] ? parseInt(row[9]) : null,
-      downloaded_pdf: row[10] === 'true',
-      feedback: row[11] || null,
-      user_agent: row[12] || '',
-      ip_last_octet: row[13] || '',
-      reasons: row[14] || '',
+      t_backend_ms: row[9] ? parseInt(row[9]) : null,
+      time_to_result_ms: row[10] ? parseInt(row[10]) : null,
+      downloaded_pdf: row[11] === 'true',
+      feedback: row[12] || null,
+      user_agent: row[13] || '',
+      ip_last_octet: row[14] || '',
+      reasons: row[15] || '',
     }));
 
   } catch (error) {
@@ -227,14 +232,112 @@ export async function getRecentRows(limit: number = 20): Promise<SheetRow[]> {
   }
 }
 
-export async function getAggregates(): Promise<AdminAggregates> {
+// New pilot aggregates function for the specific format required
+export async function getPilotAggregates(): Promise<AdminAggregates> {
+  try {
+    const sheets = getSheets();
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+
+    if (!spreadsheetId) {
+      // Return empty data if sheets not configured
+      return {
+        submissions: 0,
+        distinctUsers: 0,
+        repeatUsers: 0,
+        avgTimeToResultMs: 0,
+        pctDownloaded: 0,
+        pctUseful: 0,
+      };
+    }
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A:P`,
+    });
+
+    const rows = response.data.values || [];
+    const dataRows = rows.slice(1); // Skip header
+
+    if (dataRows.length === 0) {
+      return {
+        submissions: 0,
+        distinctUsers: 0,
+        repeatUsers: 0,
+        avgTimeToResultMs: 0,
+        pctDownloaded: 0,
+        pctUseful: 0,
+      };
+    }
+
+    const emailCounts = new Map<string, number>();
+    let totalTimeToResult = 0;
+    let timeToResultCount = 0;
+    let pdfDownloads = 0;
+    let feedbackYes = 0;
+    let feedbackNo = 0;
+
+    dataRows.forEach(row => {
+      // Email (column 2) - count occurrences
+      if (row[2]) {
+        emailCounts.set(row[2], (emailCounts.get(row[2]) || 0) + 1);
+      }
+
+      // Time to result (column 10)
+      if (row[10]) {
+        const timeMs = parseInt(row[10]);
+        if (!isNaN(timeMs)) {
+          totalTimeToResult += timeMs;
+          timeToResultCount++;
+        }
+      }
+
+      // PDF downloads (column 11)
+      if (row[11] === 'true') pdfDownloads++;
+
+      // Feedback (column 12)
+      if (row[12] === 'yes') feedbackYes++;
+      else if (row[12] === 'no') feedbackNo++;
+    });
+
+    const submissions = dataRows.length;
+    const distinctUsers = emailCounts.size;
+    const repeatUsers = Array.from(emailCounts.values()).filter(count => count >= 2).length;
+    const avgTimeToResultMs = timeToResultCount > 0 ? Math.round(totalTimeToResult / timeToResultCount) : 0;
+    const pctDownloaded = Math.round((pdfDownloads / submissions) * 100);
+    const pctUseful = (feedbackYes + feedbackNo) > 0 ? Math.round((feedbackYes / (feedbackYes + feedbackNo)) * 100) : 0;
+
+    return {
+      submissions,
+      distinctUsers,
+      repeatUsers,
+      avgTimeToResultMs,
+      pctDownloaded,
+      pctUseful,
+    };
+
+  } catch (error) {
+    console.error('Error getting pilot aggregates:', error);
+    // Return empty data instead of throwing
+    return {
+      submissions: 0,
+      distinctUsers: 0,
+      repeatUsers: 0,
+      avgTimeToResultMs: 0,
+      pctDownloaded: 0,
+      pctUseful: 0,
+    };
+  }
+}
+
+// Legacy aggregates function for existing features
+export async function getLegacyAggregates(): Promise<LegacyAdminAggregates> {
   try {
     const sheets = getSheets();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SHEET_NAME}!A:O`,
+      range: `${SHEET_NAME}!A:P`,
     });
 
     const rows = response.data.values || [];
@@ -282,9 +385,9 @@ export async function getAggregates(): Promise<AdminAggregates> {
       // Email (column 2)
       if (row[2]) uniqueEmails.add(row[2]);
 
-      // Time to result (column 9)
-      if (row[9]) {
-        const timeMs = parseInt(row[9]);
+      // Time to result (column 10 - updated for new schema)
+      if (row[10]) {
+        const timeMs = parseInt(row[10]);
         const timeSec = timeMs / 1000;
         totalTimeToResult += timeSec;
         timeToResultCount++;
@@ -297,12 +400,12 @@ export async function getAggregates(): Promise<AdminAggregates> {
         else timeDistribution.over120s++;
       }
 
-      // PDF downloads (column 10)
-      if (row[10] === 'true') pdfDownloads++;
+      // PDF downloads (column 11 - updated for new schema)
+      if (row[11] === 'true') pdfDownloads++;
 
-      // Feedback (column 11)
-      if (row[11] === 'yes') feedbackYes++;
-      else if (row[11] === 'no') feedbackNo++;
+      // Feedback (column 12 - updated for new schema)
+      if (row[12] === 'yes') feedbackYes++;
+      else if (row[12] === 'no') feedbackNo++;
       else feedbackNull++;
     });
 

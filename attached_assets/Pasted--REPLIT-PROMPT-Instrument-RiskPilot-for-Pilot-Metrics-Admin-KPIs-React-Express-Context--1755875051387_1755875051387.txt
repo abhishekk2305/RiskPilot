@@ -1,0 +1,229 @@
+📋 REPLIT PROMPT — Instrument “RiskPilot” for Pilot Metrics & Admin KPIs (React + Express)
+
+Context: You’re enhancing the existing Replit project at RiskPilot (React + Express). Keep the current features (enhanced rules engine, CSV exports, admin analytics, notifications) but add precise pilot instrumentation and summary KPIs I can screenshot for a 1-page case study.
+
+0) Project Constraints & Principles
+
+Single Repl with React (Vite) frontend + Express backend.
+
+Persist logs to current datastore (Google Sheets, SQLite, or JSON)—preserve existing choice. If Google Sheets exists, continue using it.
+
+Privacy: only store needed fields; mask IP to last octet.
+
+Keep all current routes; we’re adding endpoints and UI, not removing.
+
+1) Data Contract — Log Schema (ONE row per submission)
+
+Create/ensure the following columns exist and are populated across the request lifecycle:
+
+id                  // string, uuid
+timestamp_iso       // string, ISO when /api/score received
+email               // string
+country             // string
+contract_type       // string
+contract_value_usd  // number
+data_processing     // 'yes'|'no'
+score               // number
+level               // 'Low'|'Medium'|'High'
+t_backend_ms        // number | null     (optional: compute time)
+t_first_result_ms   // number | null     (primary metric)
+downloaded_pdf      // boolean
+feedback            // 'yes'|'no'|''     (user’s usefulness vote)
+user_agent          // string
+ip_last_octet       // string
+
+
+If your current table has extra fields (industry, duration, IP/finance flags), keep them—just add these ones.
+
+2) Backend Endpoints (Express)
+2.1 POST /api/score
+
+Input: { email, country, contractType, contractValueUsd, dataProcessing, ... }
+
+Steps:
+
+const start = Date.now()
+
+Run existing risk engine; get { score, level, reasons }
+
+Create id = crypto.randomUUID()
+
+Append log row with all fields above; set t_backend_ms = Date.now() - start, t_first_result_ms = null, downloaded_pdf=false, feedback=''.
+
+Return { id, level, reasons }.
+
+2.2 POST /api/result-ready
+
+Input: { id, tFirstResultMs? }
+
+If client sends tFirstResultMs, use it; else, if you maintain a startTimes[id] map, compute fallback.
+
+Update row where id matches: set t_first_result_ms.
+
+2.3 GET /api/report
+
+Query: ?id=<id>
+
+Before generating/streaming the PDF report, update downloaded_pdf = true for that id.
+
+Keep existing PDF generation (pdfkit) and filename like Compliance-Risk-Report-<id>.pdf.
+
+2.4 POST /api/feedback
+
+Input: { id, feedback } where feedback ∈ 'yes'|'no'
+
+Update feedback for that row.
+
+Implement these four routes without breaking any existing enhanced features (CSV exports, notifications, Slack, etc.).
+
+3) Datastore Adapter
+
+Your app likely has a logs module for Google Sheets/SQLite/JSON. Ensure it provides:
+
+appendRow(row: LogRow): Promise<void>
+updateById(id: string, patch: Partial<LogRow>): Promise<void>
+getAll(): Promise<LogRow[]> // optionally last N
+
+
+Google Sheets (preferred): use googleapis with Service Account, spreadsheets.values.append and an index cache to update rows by id.
+
+SQLite: better-sqlite3 with a UNIQUE index on id.
+
+JSON: atomic writes; keep size under control (<10k rows).
+
+Do not remove your current tables/columns—just ensure the above fields are available and updated.
+
+4) Frontend Instrumentation (React)
+4.1 On form submit
+
+Right before you call /api/score, set:
+
+const tempId = crypto.randomUUID();
+sessionStorage.setItem(`submitAt:${tempId}`, Date.now().toString());
+
+
+After receiving { id } from /api/score, move the timestamp to the real id:
+
+const submitAtTemp = sessionStorage.getItem(`submitAt:${tempId}`);
+if (submitAtTemp) sessionStorage.setItem(`submitAt:${id}`, submitAtTemp);
+
+4.2 When the result view is actually visible to the user
+
+Fire:
+
+const submitAt = sessionStorage.getItem(`submitAt:${id}`);
+const tFirstResultMs = submitAt ? Date.now() - Number(submitAt) : null;
+
+fetch('/api/result-ready', {
+  method: 'POST',
+  headers: {'Content-Type':'application/json'},
+  body: JSON.stringify({ id, tFirstResultMs })
+});
+
+
+Do this in a useEffect for the result component with [id] dep, after you render the score. Disable duplicate posts.
+
+4.3 Feedback buttons
+
+“Was this useful?” → two buttons:
+
+<button onClick={() => vote('yes')}>Yes</button>
+<button onClick={() => vote('no')}>No</button>
+
+// vote helper:
+function vote(answer) {
+  fetch('/api/feedback', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ id, feedback: answer })
+  });
+  // UI: disable buttons after click
+}
+
+4.4 Report download
+
+Ensure your “Download PDF” button hits /api/report?id=${id} in the same browser context (so the server marks downloaded_pdf=true).
+
+5) Admin KPI Endpoint & UI
+5.1 GET /api/admin/aggregates (auth with existing admin key/session)
+
+Compute from getAll():
+
+submissions: total rows
+
+distinctUsers: count of unique emails
+
+repeatUsers: count of emails with ≥2 submissions
+
+avgTimeToResultMs: average of t_first_result_ms where not null (rounded)
+
+pctDownloaded: % of rows with downloaded_pdf=true
+
+pctUseful: % of answered feedback that are 'yes'
+
+Return JSON as:
+
+{
+  "submissions": 12,
+  "distinctUsers": 9,
+  "repeatUsers": 2,
+  "avgTimeToResultMs": 58000,
+  "pctDownloaded": 78,
+  "pctUseful": 67
+}
+
+5.2 Admin UI additions
+
+At the top of the admin dashboard, add three summary cards:
+
+Avg time-to-result: ${Math.round(avgTimeToResultMs/1000)} sec
+
+% downloaded reports: ${pctDownloaded}%
+
+% said “useful”: ${pctUseful}%
+
+Keep your existing advanced time-series charts. Add a compact bar chart with two bars: % Downloaded, % Useful. Add a single bar or gauge for Avg time-to-result (in seconds).
+
+6) CSV Exports (if not already present for these fields)
+
+Ensure CSV export supports the new fields (t_first_result_ms, downloaded_pdf, feedback).
+
+Add an “Aggregates.csv” download with a single row of the JSON above for quick sharing.
+
+7) Security & Privacy
+
+Keep existing admin auth (key or session). Require it for /api/admin/aggregates.
+
+Store only last octet of IP. Don’t store names, phone, or more PII.
+
+Add a small text line under the form: “Pilot only — by submitting, you consent to anonymous usage analytics.”
+
+8) Acceptance Criteria (must pass)
+
+Submitting the form writes a row with id, timestamps, and fields; returns score & reasons in <2s locally.
+
+When result is shown, /api/result-ready sets t_first_result_ms.
+
+/api/report sets downloaded_pdf=true.
+
+Feedback Yes/No writes to the same row.
+
+/api/admin/aggregates returns correct values.
+
+Admin shows the three summary cards + two quick charts for screenshots.
+
+CSV export includes the new fields; aggregates CSV works.
+
+9) Quick Test Plan (run now)
+
+Submit once (note Network: /api/score then /api/result-ready).
+
+Download report (check flag).
+
+Vote Yes/No.
+
+Admin → confirm: Avg time-to-result (seconds), % downloaded, % useful.
+
+Export Aggregates.csv—verify the three headline numbers.
+
+Please implement all of the above now, preserving existing features.

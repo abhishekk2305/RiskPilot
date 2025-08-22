@@ -118,10 +118,10 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportAggregated = async (groupBy: string) => {
+  const handleExportAggregated = async () => {
     try {
       setShowExportMenu(false);
-      const response = await fetch(`/api/admin/export-aggregated?groupBy=${groupBy}&includeTimeDistribution=true&includeFeedbackStats=true`, {
+      const response = await fetch('/api/admin/export-aggregated', {
         headers: { 'Authorization': `Bearer ${adminKey}` },
       });
       
@@ -130,7 +130,7 @@ export default function AdminDashboard() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `compliance-aggregated-${groupBy}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `Aggregates.csv`;
         a.click();
         window.URL.revokeObjectURL(url);
       }
@@ -282,34 +282,101 @@ export default function AdminDashboard() {
 
         {aggregates && (
           <>
-            {/* Metrics Cards */}
+            {/* Pilot Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Avg time-to-result</h3>
+                    <p className="text-3xl font-bold text-blue-600">{Math.round(aggregates.avgTimeToResultMs / 1000)} sec</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-blue-500" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">% downloaded reports</h3>
+                    <p className="text-3xl font-bold text-green-600">{aggregates.pctDownloaded}%</p>
+                  </div>
+                  <Download className="h-8 w-8 text-green-500" />
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">% said "useful"</h3>
+                    <p className="text-3xl font-bold text-purple-600">{aggregates.pctUseful}%</p>
+                  </div>
+                  <Shield className="h-8 w-8 text-purple-500" />
+                </div>
+              </div>
+            </div>
+
+            {/* Compact Charts for Screenshots */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Download & Feedback Rates</h3>
+                <AdminChart
+                  type="bar"
+                  data={{
+                    labels: ['% Downloaded', '% Useful'],
+                    datasets: [{
+                      label: 'Percentage',
+                      data: [aggregates.pctDownloaded, aggregates.pctUseful],
+                      backgroundColor: ['#10b981', '#8b5cf6'],
+                      borderColor: ['#059669', '#7c3aed'],
+                      borderWidth: 1,
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                      y: { beginAtZero: true, max: 100 }
+                    }
+                  }}
+                />
+              </div>
+              <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Response Time Gauge</h3>
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-center">
+                    <div className="text-4xl font-bold text-blue-600">{Math.round(aggregates.avgTimeToResultMs / 1000)}s</div>
+                    <div className="text-sm text-gray-500">Average Response</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <AdminMetricCard
                 title="Total Users"
-                value={aggregates.totalUsers.toString()}
+                value={aggregates.distinctUsers.toString()}
                 icon={<Users className="h-6 w-6" />}
-                trend="+12% from last week"
+                trend=""
                 color="blue"
               />
               <AdminMetricCard
                 title="Submissions"
-                value={aggregates.totalSubmissions.toString()}
+                value={aggregates.submissions.toString()}
                 icon={<FileText className="h-6 w-6" />}
-                trend="+8% from last week"
+                trend=""
                 color="green"
               />
               <AdminMetricCard
-                title="Avg Time to Result"
-                value={`${aggregates.avgTimeToResult.toFixed(1)}s`}
-                icon={<Clock className="h-6 w-6" />}
-                trend="-0.3s improvement"
+                title="Repeat Users"
+                value={aggregates.repeatUsers.toString()}
+                icon={<Users className="h-6 w-6" />}
+                trend=""
                 color="yellow"
               />
               <AdminMetricCard
-                title="PDF Downloads"
-                value={`${aggregates.pdfDownloadRate}%`}
+                title="Download Rate"
+                value={`${aggregates.pctDownloaded}%`}
                 icon={<Download className="h-6 w-6" />}
-                trend="+5% from last week"
+                trend=""
                 color="purple"
               />
             </div>
@@ -550,22 +617,10 @@ export default function AdminDashboard() {
                       </button>
                       <hr className="my-1" />
                       <button 
-                        onClick={() => handleExportAggregated('day')}
+                        onClick={handleExportAggregated}
                         className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
                       >
-                        <i className="fas fa-calendar-day mr-2"></i>Daily Aggregates
-                      </button>
-                      <button 
-                        onClick={() => handleExportAggregated('week')}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
-                      >
-                        <i className="fas fa-calendar-week mr-2"></i>Weekly Aggregates
-                      </button>
-                      <button 
-                        onClick={() => handleExportAggregated('month')}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
-                      >
-                        <i className="fas fa-calendar-alt mr-2"></i>Monthly Aggregates
+                        <i className="fas fa-chart-bar mr-2"></i>Aggregated Analytics
                       </button>
                     </div>
                   )}

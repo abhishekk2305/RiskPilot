@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '../client/src/components/ui/card';
 import { Button } from '../client/src/components/ui/button';
 import { Shield, Download, Plus, ThumbsUp, ThumbsDown, Check, Info } from 'lucide-react';
@@ -14,11 +14,33 @@ interface ResultCardProps {
 export default function ResultCard({ result, onNewAssessment }: ResultCardProps) {
   const [feedbackGiven, setFeedbackGiven] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [timingReported, setTimingReported] = useState(false);
+
+  // Report timing when result is visible
+  useEffect(() => {
+    if (!timingReported && result.id) {
+      const submitAt = sessionStorage.getItem(`submitAt:${result.id}`);
+      if (submitAt) {
+        const tFirstResultMs = Date.now() - Number(submitAt);
+        
+        // Send timing to server
+        fetch('/api/result-ready', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: result.id, tFirstResultMs })
+        }).then(() => {
+          setTimingReported(true);
+          // Clean up sessionStorage
+          sessionStorage.removeItem(`submitAt:${result.id}`);
+        }).catch(console.error);
+      }
+    }
+  }, [result.id, timingReported]);
 
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
     try {
-      const response = await fetch(`/api/report?logId=${result.id}`);
+      const response = await fetch(`/api/report?id=${result.id}`);
       
       if (!response.ok) {
         throw new Error('Failed to generate PDF');
