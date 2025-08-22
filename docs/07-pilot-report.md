@@ -1,5 +1,6 @@
 # Pilot Report — RiskPilot 
 
+This report summarizes the pilot usage metrics for **RiskPilot**.
 
 ## Summary
 We piloted RiskPilot with **6 N users** to validate speed, adoption, and usefulness.
@@ -18,9 +19,12 @@ We piloted RiskPilot with **6 N users** to validate speed, adoption, and usefuln
 | Repeat Users (count / %)        | 1        |
 
 ## Screenshots
-- Result screen + PDF button
-- Admin KPI cards
-- (Optional) CSV/aggregates sample
+## 📊 Admin Dashboard Overview
+ ![Admin Dashboard](./docs/Dashboard.png)
+## 📈 Time Series Analytics
+![Submissions Trend](./docs/Graph.png)
+## 📑 Recent Submissions
+![Submissions Table](./docs/Submission.png)
 
 ## Learnings
 - Users valued speed + PDF trail
