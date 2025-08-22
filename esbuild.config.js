@@ -1,11 +1,12 @@
 import { build } from 'esbuild';
 import { glob } from 'glob';
 
+console.log('🔧 Building production server with esbuild...');
+
 // Get all TypeScript files we need to transpile for production
+// Note: We exclude server/routes.ts and server/index.ts as they have Next.js dependencies
 const serverFiles = [
-  'server/production-index.ts',
   'server/express-routes.ts', 
-  'server/vite.ts',
   'server/storage.ts'
 ];
 
@@ -16,6 +17,8 @@ const sharedFiles = glob.sync('shared/**/*.ts');
 const libFiles = glob.sync('lib/**/*.ts');
 
 const allFiles = [...serverFiles, ...sharedFiles, ...libFiles];
+
+console.log('📁 Files to transpile:', allFiles);
 
 // Custom esbuild configuration that transpiles all needed files
 await build({
@@ -30,6 +33,8 @@ await build({
     'process.env.NODE_ENV': '"production"'
   }
 }).catch((error) => {
-  console.error('Build failed:', error);
+  console.error('❌ esbuild failed:', error);
   process.exit(1);
 });
+
+console.log('✅ esbuild completed successfully!');
