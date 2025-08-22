@@ -64,6 +64,7 @@ export default function ResultCard({ result, onNewAssessment }: ResultCardProps)
 
   const handleFeedback = async (feedback: 'yes' | 'no') => {
     try {
+      console.log('📝 Submitting feedback:', feedback, 'for assessment:', result.id);
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
@@ -77,9 +78,14 @@ export default function ResultCard({ result, onNewAssessment }: ResultCardProps)
 
       if (response.ok) {
         setFeedbackGiven(true);
+        console.log('✅ Feedback submitted successfully! Admin dashboard will update.');
+      } else {
+        console.error('❌ Feedback submission failed');
+        alert('Failed to submit feedback. Please try again.');
       }
     } catch (error) {
-      console.error('Feedback error:', error);
+      console.error('❌ Feedback error:', error);
+      alert('Failed to submit feedback. Please try again.');
     }
   };
 
@@ -146,21 +152,22 @@ export default function ResultCard({ result, onNewAssessment }: ResultCardProps)
           <div className="border-t border-gray-200 pt-6">
             <p className="text-sm text-gray-700 mb-4">Was this useful?</p>
             <div className="flex space-x-4">
-              <Button
+              <button
                 onClick={() => handleFeedback('yes')}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                data-testid="feedback-yes"
               >
                 <ThumbsUp className="mr-2 h-4 w-4" />
                 Yes
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={() => handleFeedback('no')}
-                variant="outline"
-                className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium border border-gray-300"
+                data-testid="feedback-no"
               >
                 <ThumbsDown className="mr-2 h-4 w-4" />
                 No
-              </Button>
+              </button>
             </div>
           </div>
         ) : (
