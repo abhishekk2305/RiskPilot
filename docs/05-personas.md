@@ -4,7 +4,7 @@
 - **Goal:** triage contractors fast; avoid delays
 - **Pain:** manual checks eat time; inconsistent reviewer judgment
 - **Success:** clear score < 60s; shareable PDF
-- **Top objection:** “Is this legally sufficient?” → Position as pre-check + audit note
+- **Top objection:** “Is this legally sufficient?” → It is a pre-check + audit note
 
 ## Compliance Analyst
 - **Goal:** consistent rules + audit trail
