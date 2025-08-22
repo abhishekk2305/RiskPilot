@@ -234,16 +234,100 @@ export async function getRecentRows(limit: number = 20): Promise<SheetRow[]> {
 }
 
 // New pilot aggregates function for the specific format required
+// Helper function to calculate pilot aggregates from assessment data
+function calculatePilotAggregatesFromData(assessments: any[]): AdminAggregates {
+  console.log(`Calculating aggregates for ${assessments.length} assessments`);
+  
+  if (assessments.length === 0) {
+    return {
+      submissions: 0,
+      distinctUsers: 0,
+      repeatUsers: 0,
+      avgTimeToResultMs: 0,
+      pctDownloaded: 0,
+      pctUseful: 0,
+    };
+  }
+
+  const emailCounts = new Map<string, number>();
+  let totalTimeToResult = 0;
+  let timeToResultCount = 0;
+  let pdfDownloads = 0;
+  let feedbackYes = 0;
+  let feedbackNo = 0;
+
+  assessments.forEach((assessment, index) => {
+    console.log(`Processing assessment ${index}: ID=${assessment.id}, email=${assessment.email}`);
+    
+    // Email - count occurrences (skip test data)
+    if (assessment.email && assessment.id !== 'test') {
+      emailCounts.set(assessment.email, (emailCounts.get(assessment.email) || 0) + 1);
+    }
+
+    // Time to result
+    if (assessment.time_to_result_ms) {
+      const timeMs = parseInt(assessment.time_to_result_ms);
+      if (!isNaN(timeMs)) {
+        totalTimeToResult += timeMs;
+        timeToResultCount++;
+      }
+    }
+
+    // PDF downloads
+    if (assessment.downloaded_pdf === true || assessment.downloaded_pdf === 'true') pdfDownloads++;
+
+    // Feedback
+    if (assessment.feedback === 'yes') feedbackYes++;
+    else if (assessment.feedback === 'no') feedbackNo++;
+  });
+
+  const submissions = assessments.filter(a => a.id !== 'test').length; // Exclude test data
+  const distinctUsers = emailCounts.size;
+  const repeatUsers = Array.from(emailCounts.values()).filter(count => count >= 2).length;
+  const avgTimeToResultMs = timeToResultCount > 0 ? Math.round(totalTimeToResult / timeToResultCount) : 0;
+  const pctDownloaded = submissions > 0 ? Math.round((pdfDownloads / submissions) * 100) : 0;
+  const pctUseful = (feedbackYes + feedbackNo) > 0 ? Math.round((feedbackYes / (feedbackYes + feedbackNo)) * 100) : 0;
+
+  const result = {
+    submissions,
+    distinctUsers,
+    repeatUsers,
+    avgTimeToResultMs,
+    pctDownloaded,
+    pctUseful,
+  };
+
+  console.log('Calculated aggregates:', result);
+  return result;
+}
+
 export async function getPilotAggregates(): Promise<AdminAggregates> {
+  console.log('getPilotAggregates called');
+  
+  // Always use local storage since Google Sheets may not be configured
+  try {
+    console.log('Using local storage for pilot aggregates');
+    const localAssessments = getAllAssessments();
+    return calculatePilotAggregatesFromData(localAssessments);
+  } catch (localError) {
+    console.error('Local storage failed, trying Google Sheets fallback:', localError);
+  }
+  
+  // Google Sheets fallback
   try {
     const sheets = getSheets();
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     if (!spreadsheetId) {
-      // Fall back to local storage if sheets not configured
-      console.log('Google Sheets not configured, using local storage');
-      const localAssessments = getAllAssessments();
-      return calculatePilotAggregatesFromData(localAssessments);
+      console.log('Google Sheets not configured, returning empty aggregates');
+      return {
+        submissions: 0,
+        distinctUsers: 0,
+        repeatUsers: 0,
+        avgTimeToResultMs: 0,
+        pctDownloaded: 0,
+        pctUseful: 0,
+      };
     }
 
     const response = await sheets.spreadsheets.values.get({

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "test",
+    "timestamp": "2025-08-22T15:34:49.232Z"
+  },
+  {
+    "id": "b354f1df-caf9-49e8-91bb-86d14fd81f30",
+    "timestamp_iso": "2025-08-22T15:34:56.345Z",
+    "email": "debug@example.com",
+    "country": "Canada",
+    "contract_type": "eor",
+    "contract_value_usd": 100000,
+    "data_processing": false,
+    "score": 2,
+    "level": "Low",
+    "t_backend_ms": 0,
+    "time_to_result_ms": null,
+    "downloaded_pdf": false,
+    "feedback": null,
+    "user_agent": "curl/8.14.1",
+    "ip_last_octet": "1",
+    "reasons": "Unknown jurisdiction requires research and due diligence|Employer of Record structure provides compliance protection|Moderate contract value requires standard compliance measures"
+  }
+]

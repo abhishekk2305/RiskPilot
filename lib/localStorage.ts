@@ -1,3 +1,6 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
 // Local storage for assessment data when Google Sheets isn't available
 interface AssessmentData {
   id: string;
@@ -18,37 +21,77 @@ interface AssessmentData {
   reasons: string;
 }
 
-// In-memory storage (in production, use Redis or a database)
-const assessmentStore = new Map<string, AssessmentData>();
+// File-based storage path
+const DATA_DIR = path.join(process.cwd(), 'data');
+const ASSESSMENTS_FILE = path.join(DATA_DIR, 'assessments.json');
+
+// Ensure data directory exists
+function ensureDataDir(): void {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+// Load assessments from file
+function loadAssessments(): AssessmentData[] {
+  try {
+    ensureDataDir();
+    if (fs.existsSync(ASSESSMENTS_FILE)) {
+      const data = fs.readFileSync(ASSESSMENTS_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading assessments:', error);
+  }
+  return [];
+}
+
+// Save assessments to file
+function saveAssessments(assessments: AssessmentData[]): void {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(ASSESSMENTS_FILE, JSON.stringify(assessments, null, 2));
+  } catch (error) {
+    console.error('Error saving assessments:', error);
+  }
+}
 
 export function storeAssessment(data: AssessmentData): void {
-  assessmentStore.set(data.id, data);
-  console.log(`Stored assessment data locally for ID: ${data.id}`);
+  const assessments = loadAssessments();
+  // Remove existing entry with same ID
+  const filtered = assessments.filter(a => a.id !== data.id);
+  // Add new entry
+  filtered.push(data);
+  saveAssessments(filtered);
+  console.log(`Stored assessment data to file for ID: ${data.id}`);
 }
 
 export function getAssessment(id: string): AssessmentData | null {
-  const data = assessmentStore.get(id);
+  const assessments = loadAssessments();
+  const data = assessments.find(a => a.id === id);
   if (data) {
-    console.log(`Retrieved assessment data locally for ID: ${id}`);
+    console.log(`Retrieved assessment data from file for ID: ${id}`);
     return data;
   }
-  console.log(`Assessment data not found locally for ID: ${id}`);
+  console.log(`Assessment data not found in file for ID: ${id}`);
   return null;
 }
 
 export function updateAssessment(id: string, updates: Partial<AssessmentData>): boolean {
-  const existing = assessmentStore.get(id);
-  if (existing) {
-    const updated = { ...existing, ...updates };
-    assessmentStore.set(id, updated);
-    console.log(`Updated assessment data locally for ID: ${id}`);
+  const assessments = loadAssessments();
+  const index = assessments.findIndex(a => a.id === id);
+  if (index !== -1) {
+    assessments[index] = { ...assessments[index], ...updates };
+    saveAssessments(assessments);
+    console.log(`Updated assessment data in file for ID: ${id}`);
     return true;
   }
   return false;
 }
 
 export function getAllAssessments(): AssessmentData[] {
-  return Array.from(assessmentStore.values()).sort((a, b) => 
+  const assessments = loadAssessments();
+  return assessments.sort((a, b) => 
     new Date(b.timestamp_iso).getTime() - new Date(a.timestamp_iso).getTime()
   );
 }
