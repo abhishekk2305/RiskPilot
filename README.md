@@ -72,7 +72,7 @@ Data collected is minimal (work email + form inputs) and stored only for pilot a
 
 Clone the repo and run locally:
 
-bash
+(```bash
 git clone https://github.com/abhishekk2305/RiskPilot
 cd RiskPilot
 cp .env.example .env
@@ -83,7 +83,7 @@ Fill in .env with your service account details:
 GOOGLE_SA_EMAIL=
 GOOGLE_SA_KEY=
 GOOGLE_SHEET_ID=
-ADMIN_KEY=your-secret
+ADMIN_KEY=your-secret```)
 
 ---
 
