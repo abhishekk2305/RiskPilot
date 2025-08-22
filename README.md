@@ -77,13 +77,13 @@ git clone https://github.com/abhishekk2305/RiskPilot
 cd RiskPilot
 cp .env.example .env
 npm install
-npm run dev''')
+npm run dev
 
 Fill in .env with your service account details:
 GOOGLE_SA_EMAIL=
 GOOGLE_SA_KEY=
 GOOGLE_SHEET_ID=
-ADMIN_KEY=your-secret
+ADMIN_KEY=your-secret''')
 
 ---
 
@@ -97,7 +97,7 @@ ADMIN_KEY=your-secret
 
 ## 📄 License
 
-MIT — see [LICENSE.md](./LICENSE.md)
+MIT — see [LICENSE](./LICENSE)
 
 ---
 
