@@ -1,9 +1,8 @@
-# Pilot Report — RiskPilot (Template)
+# Pilot Report — RiskPilot 
 
-> Replace ☐ placeholders with your pilot’s actual numbers and dates.
 
 ## Summary
-We piloted RiskPilot with **☐ N users** over **☐ dates** to validate speed, adoption, and usefulness.
+We piloted RiskPilot with **6 N users** to validate speed, adoption, and usefulness.
 
 ## Setup
 - Cohort: HR + Compliance (invited via link)
@@ -13,10 +12,10 @@ We piloted RiskPilot with **☐ N users** over **☐ dates** to validate speed, 
 ## Results
 | Metric                          | Outcome  |
 |---------------------------------|----------|
-| Avg Time-to-First-Result (sec)  | ☐        |
-| Report Downloads (% of submits) | ☐        |
-| Found Useful (% yes of votes)   | ☐        |
-| Repeat Users (count / %)        | ☐        |
+| Avg Time-to-First-Result (sec)  | 0.4s     |
+| Report Downloads (% of submits) | 56       |
+| Found Useful (% yes of votes)   | 100      |
+| Repeat Users (count / %)        | 1        |
 
 ## Screenshots
 - Result screen + PDF button
