@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import { formSubmissionSchema, feedbackSchema, resultReadySchema } from '../shared/schema';
 import { riskEngine } from '../lib/riskEngine';
 import { appendToSheet, getTimestamp, updateRowById, getRowById, getPilotAggregates, getRecentRows } from '../lib/sheets';
-import { storeAssessment, getAssessment, updateAssessment } from '../lib/localStorage';
+import { storeAssessment, getAssessment, updateAssessment, getRecentAssessments } from '../lib/localStorage';
 import { checkRateLimit } from '../lib/rateLimiter';
 import { maskEmail, getLastIpOctet } from '../lib/utils';
 import { emailNotificationService } from '../lib/emailNotifications';

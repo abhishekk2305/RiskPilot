@@ -20,5 +20,41 @@
     "user_agent": "curl/8.14.1",
     "ip_last_octet": "1",
     "reasons": "Unknown jurisdiction requires research and due diligence|Employer of Record structure provides compliance protection|Moderate contract value requires standard compliance measures"
+  },
+  {
+    "id": "bf46dadb-664f-4cfb-bd80-8e4f9874ca96",
+    "timestamp_iso": "2025-08-22T15:37:28.640Z",
+    "email": "mahimachaudhary@gmail.com",
+    "country": "CA",
+    "contract_type": "independent",
+    "contract_value_usd": 1000,
+    "data_processing": true,
+    "score": 3,
+    "level": "Low",
+    "t_backend_ms": 0,
+    "time_to_result_ms": 423,
+    "downloaded_pdf": true,
+    "feedback": null,
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "ip_last_octet": "194",
+    "reasons": "Stable jurisdiction with established frameworks|Independent contractor classification requires careful documentation"
+  },
+  {
+    "id": "4fade918-067e-402a-8953-726c6ab2660d",
+    "timestamp_iso": "2025-08-22T15:39:30.187Z",
+    "email": "pilot-user@company.com",
+    "country": "Germany",
+    "contract_type": "agency",
+    "contract_value_usd": 85000,
+    "data_processing": true,
+    "score": 4,
+    "level": "Medium",
+    "t_backend_ms": 1,
+    "time_to_result_ms": null,
+    "downloaded_pdf": false,
+    "feedback": null,
+    "user_agent": "curl/8.14.1",
+    "ip_last_octet": "1",
+    "reasons": "Unknown jurisdiction requires research and due diligence|Agency arrangement requires clear liability boundaries|Moderate contract value requires standard compliance measures"
   }
 ]

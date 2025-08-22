@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function maskEmail(email: string): string {
+  if (!email || typeof email !== 'string') {
+    return email || 'no-email';
+  }
+  
   const [username, domain] = email.split('@');
   if (!username || !domain) return email;
   
