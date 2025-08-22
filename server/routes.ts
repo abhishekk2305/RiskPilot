@@ -20,9 +20,19 @@ import { GET as notificationsGetHandler, POST as notificationsPostHandler } from
 // Helper function to convert Express req/res to NextRequest/NextResponse
 function createNextRequest(req: any): NextRequest {
   const url = new URL(req.url, `http://${req.headers.host}`);
+  
+  // Ensure IP information is properly passed through headers for Next.js compatibility
+  const headers = new Headers(req.headers);
+  if (req.ip) {
+    headers.set('x-forwarded-for', req.ip);
+  }
+  if (req.connection?.remoteAddress) {
+    headers.set('x-real-ip', req.connection.remoteAddress);
+  }
+  
   return new NextRequest(url, {
     method: req.method,
-    headers: req.headers,
+    headers: headers,
     body: req.method !== 'GET' ? JSON.stringify(req.body) : undefined,
   });
 }

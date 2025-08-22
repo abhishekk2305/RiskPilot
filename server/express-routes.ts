@@ -1,39 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { formSubmissionSchema } from '../../../shared/schema';
-import { riskEngine } from '../../../lib/riskEngine';
-import { appendToSheet, getTimestamp } from '../../../lib/sheets';
-import { storeAssessment } from '../../../lib/localStorage';
-import { checkRateLimit } from '../../../lib/rateLimiter';
-import { maskEmail, getLastIpOctet } from '../../../lib/utils';
-import { emailNotificationService } from '../../../lib/emailNotifications';
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+
+// Import the actual API logic functions, but not Next.js handlers
+import { formSubmissionSchema } from '../shared/schema';
+import { riskEngine } from '../lib/riskEngine';
+import { appendToSheet, getTimestamp } from '../lib/sheets';
+import { storeAssessment } from '../lib/localStorage';
+import { checkRateLimit } from '../lib/rateLimiter';
+import { maskEmail, getLastIpOctet } from '../lib/utils';
+import { emailNotificationService } from '../lib/emailNotifications';
 import { randomUUID } from 'crypto';
 
-// In-memory storage for tracking start times
+// In-memory storage for tracking start times (moved from score route)
 const startTimes = new Map<string, number>();
 
-export async function POST(request: NextRequest) {
+// Helper functions to standardize responses
+function jsonResponse(data: any, status = 200) {
+  return { data, status };
+}
+
+function errorResponse(message: string, status = 500, errors?: any) {
+  return { data: { message, errors }, status };
+}
+
+// Express-native API route handlers (converted from Next.js format)
+async function handleScore(req: any) {
   try {
-    // Rate limiting - get IP from headers since NextRequest doesn't have ip property
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIp = request.headers.get('x-real-ip');
-    const ip = forwarded?.split(',')[0]?.trim() || realIp || 'unknown';
+    // Rate limiting - get IP from Express request
+    const ip = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || 'unknown';
     const rateLimitResult = checkRateLimit(ip);
     if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        { message: 'Too many requests. Please try again later.' },
-        { status: 429 }
-      );
+      return errorResponse('Too many requests. Please try again later.', 429);
     }
 
-    const body = await request.json();
+    const body = req.body;
     
     // Validate input
     const validationResult = formSubmissionSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        { message: 'Invalid input data', errors: validationResult.error.errors },
-        { status: 400 }
-      );
+      return errorResponse('Invalid input data', 400, validationResult.error.errors);
     }
 
     const formData = validationResult.data;
@@ -65,7 +71,7 @@ export async function POST(request: NextRequest) {
       time_to_result_ms: null, // Will be filled when result_ready is called
       downloaded_pdf: false,
       feedback: null,
-      user_agent: request.headers.get('user-agent') || '',
+      user_agent: req.headers['user-agent'] || '',
       ip_last_octet: getLastIpOctet(ip),
       reasons: riskResult.reasons.join('|'), // Store as pipe-separated string
     };
@@ -97,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Return result
-    return NextResponse.json({
+    return jsonResponse({
       id,
       score: riskResult.score,
       level: riskResult.level,
@@ -106,11 +112,26 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Score API error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse('Internal server error');
   }
+}
+
+export async function registerExpressRoutes(app: Express): Promise<Server> {
+  // Register API routes with Express-native handlers
+  app.post('/api/score', async (req, res) => {
+    const result = await handleScore(req);
+    res.status(result.status).json(result.data);
+  });
+
+  // Add other API routes here following the same pattern...
+  // For now, let's add a simple health check
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Create server
+  const server = createServer(app);
+  return server;
 }
 
 export { startTimes };
