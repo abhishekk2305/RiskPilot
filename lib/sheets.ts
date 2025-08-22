@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { getAllAssessments } from './localStorage';
 import type { AdminAggregates, LegacyAdminAggregates } from '../shared/schema';
 
 const SHEET_NAME = 'pilot_logs';
@@ -239,15 +240,10 @@ export async function getPilotAggregates(): Promise<AdminAggregates> {
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
 
     if (!spreadsheetId) {
-      // Return empty data if sheets not configured
-      return {
-        submissions: 0,
-        distinctUsers: 0,
-        repeatUsers: 0,
-        avgTimeToResultMs: 0,
-        pctDownloaded: 0,
-        pctUseful: 0,
-      };
+      // Fall back to local storage if sheets not configured
+      console.log('Google Sheets not configured, using local storage');
+      const localAssessments = getAllAssessments();
+      return calculatePilotAggregatesFromData(localAssessments);
     }
 
     const response = await sheets.spreadsheets.values.get({
@@ -316,16 +312,23 @@ export async function getPilotAggregates(): Promise<AdminAggregates> {
     };
 
   } catch (error) {
-    console.error('Error getting pilot aggregates:', error);
-    // Return empty data instead of throwing
-    return {
-      submissions: 0,
-      distinctUsers: 0,
-      repeatUsers: 0,
+    console.error('Error getting pilot aggregates from sheets:', error);
+    // Fall back to local storage
+    try {
+      const localAssessments = getAllAssessments();
+      return calculatePilotAggregatesFromData(localAssessments);
+    } catch (localError) {
+      console.error('Local storage fallback failed:', localError);
+      // Return empty data as last resort
+      return {
+        submissions: 0,
+        distinctUsers: 0,
+        repeatUsers: 0,
       avgTimeToResultMs: 0,
       pctDownloaded: 0,
       pctUseful: 0,
     };
+  }
   }
 }
 

@@ -363,8 +363,14 @@ async function handleAdminRows(req: any) {
       return errorResponse('Unauthorized', 401);
     }
 
-    // Get recent rows
-    const rows = await getRecentRows(20);
+    // Try to get recent rows from sheets, fall back to local storage
+    let rows;
+    try {
+      rows = await getRecentRows(20);
+    } catch (sheetsError) {
+      console.warn('Sheets access failed, using local storage:', sheetsError);
+      rows = getRecentAssessments(20);
+    }
 
     // Mask emails for privacy
     const maskedRows = rows.map(row => ({

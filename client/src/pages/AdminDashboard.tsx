@@ -431,42 +431,56 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Traditional Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-              <AdminChart
-                type="bar"
-                title="Time to Result Distribution"
-                data={{
-                  labels: ['<15s', '15-30s', '30-60s', '60-120s', '>120s'],
-                  datasets: [{
-                    label: 'Assessments',
-                    data: [
-                      aggregates.timeDistribution.under15s,
-                      aggregates.timeDistribution.from15to30s,
-                      aggregates.timeDistribution.from30to60s,
-                      aggregates.timeDistribution.from60to120s,
-                      aggregates.timeDistribution.over120s,
-                    ],
-                    backgroundColor: '#2563eb',
-                  }]
-                }}
-              />
-              <AdminChart
-                type="doughnut"
-                title="User Feedback"
-                data={{
-                  labels: ['Useful', 'Not Useful', 'No Response'],
-                  datasets: [{
-                    data: [
-                      aggregates.feedbackDistribution.useful,
-                      aggregates.feedbackDistribution.notUseful,
-                      aggregates.feedbackDistribution.noResponse,
-                    ],
-                    backgroundColor: ['#059669', '#dc2626', '#6b7280'],
-                  }]
-                }}
-              />
-            </div>
+            {/* Pilot Data Charts - Only show if we have data */}
+            {aggregates.submissions > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Overview</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Avg Response Time:</span>
+                      <span className="font-semibold">{Math.round(aggregates.avgTimeToResultMs / 1000)}s</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Download Rate:</span>
+                      <span className="font-semibold">{aggregates.pctDownloaded}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Feedback Rate:</span>
+                      <span className="font-semibold">{aggregates.pctUseful}%</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">User Engagement</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Total Submissions:</span>
+                      <span className="font-semibold">{aggregates.submissions}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Unique Users:</span>
+                      <span className="font-semibold">{aggregates.distinctUsers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Repeat Users:</span>
+                      <span className="font-semibold">{aggregates.repeatUsers}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* No Data State */}
+            {aggregates.submissions === 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center mb-8">
+                <div className="text-gray-400 mb-4">
+                  <Shield className="h-12 w-12 mx-auto" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-600 mb-2">No pilot data yet</h3>
+                <p className="text-gray-500">Start using the risk assessment form to see pilot metrics here.</p>
+              </div>
+            )}
 
             {/* Insights Panel */}
             {trendsData && trendsData.insights && trendsData.insights.length > 0 && (
