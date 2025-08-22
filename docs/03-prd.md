@@ -41,7 +41,7 @@ Admins monitor **Avg TTFR**, **% Downloads**, **% Useful**, and **Repeat Usage**
 - Compliance Analyst — consistent rules, audit proof
 - Finance Ops — payout risk context
 
-## 6) User Stories (samples)
+## 6) User Stories 
 - As an **HR Manager**, when I submit a contractor form, I want a clear risk score within 60 seconds so I can decide next steps.  
 - As a **Compliance Analyst**, I want a downloadable PDF with rationale so I can attach it to the case file.  
 - As **Finance Ops**, I want to see a risk level before payout to decide whether to hold or escalate.
