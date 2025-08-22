@@ -89,26 +89,23 @@ ADMIN_KEY=your-secret
 
 ## 🗺 Roadmap
 
-Now: MVP + pilot analytics
-
-Next: Alerts for high-risk submissions; richer scoring rules
-
-Later: Integrations with HRIS/payroll; audit logs; GDPR/SOC2 trust features
+- **Now:** MVP + pilot analytics  
+- **Next:** Alerts for high-risk submissions; richer scoring rules  
+- **Later:** Integrations with HRIS/payroll; audit logs; GDPR/SOC2 trust features  
 
 ---
 
 ## 📄 License
 
-MIT — see LICENSE
+MIT — see [LICENSE.md](./LICENSE.md)
 
 ---
 
 ## 🙌 A Note from the Maker
 
-RiskPilot started as an experiment: could a single person ship, measure, and learn from a compliance tool MVP in under two weeks?
+RiskPilot started as an experiment:  
+*Could a single person ship, measure, and learn from a compliance tool MVP in under two weeks?*  
+
 This repo documents that journey. Feedback is welcome — both on the code and the product approach.
-
-
----
 
 
