@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Avg time-to-result</h3>
-                    <p className="text-3xl font-bold text-blue-600">{Math.round(aggregates.avgTimeToResultMs / 1000)} sec</p>
+                    <p className="text-3xl font-bold text-blue-600">{aggregates.avgTimeToResultMs > 0 ? (aggregates.avgTimeToResultMs / 1000).toFixed(1) : '0'} sec</p>
                   </div>
                   <Clock className="h-8 w-8 text-blue-500" />
                 </div>
@@ -342,7 +342,9 @@ export default function AdminDashboard() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Response Time Gauge</h3>
                 <div className="flex items-center justify-center h-32">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-blue-600">{Math.round(aggregates.avgTimeToResultMs / 1000)}s</div>
+                    <div className="text-4xl font-bold text-blue-600">
+                      {aggregates.avgTimeToResultMs > 0 ? (aggregates.avgTimeToResultMs / 1000).toFixed(1) + 's' : '0s'}
+                    </div>
                     <div className="text-sm text-gray-500">Average Response</div>
                   </div>
                 </div>

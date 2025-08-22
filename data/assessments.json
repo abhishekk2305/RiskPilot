@@ -56,5 +56,23 @@
     "user_agent": "curl/8.14.1",
     "ip_last_octet": "1",
     "reasons": "Unknown jurisdiction requires research and due diligence|Agency arrangement requires clear liability boundaries|Moderate contract value requires standard compliance measures"
+  },
+  {
+    "id": "38e05092-364b-4840-9e50-bfa99c4a80f3",
+    "timestamp_iso": "2025-08-22T15:44:46.791Z",
+    "email": "johnbestow@gmail.com",
+    "country": "GB",
+    "contract_type": "independent",
+    "contract_value_usd": 1000,
+    "data_processing": true,
+    "score": 6,
+    "level": "Medium",
+    "t_backend_ms": 0,
+    "time_to_result_ms": 405,
+    "downloaded_pdf": true,
+    "feedback": null,
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+    "ip_last_octet": "194",
+    "reasons": "Moderate regulatory complexity|GDPR compliance required for EU data processing|Independent contractor classification requires careful documentation"
   }
 ]

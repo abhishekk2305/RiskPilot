@@ -425,13 +425,45 @@ export async function registerExpressRoutes(app: Express): Promise<Server> {
     res.status(result.status).json(result.data);
   });
 
-  // Placeholder admin routes - implement as needed
+  // Time series analytics
   app.get('/api/admin/time-series', async (req, res) => {
     const authResult = checkAdminAuthExpress(req);
     if (!authResult.success) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    res.json({ data: [], message: 'Time series data not implemented yet' });
+    
+    try {
+      const assessments = await getStoredAssessments();
+      const grouped: { [key: string]: number } = {};
+      
+      // Group by date (last 7 days)
+      const dates = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (6 - i));
+        return date.toISOString().split('T')[0];
+      });
+      
+      dates.forEach(date => grouped[date] = 0);
+      
+      assessments.forEach(assessment => {
+        if (assessment.timestamp) {
+          const date = assessment.timestamp.split('T')[0];
+          if (grouped[date] !== undefined) {
+            grouped[date]++;
+          }
+        }
+      });
+      
+      const data = dates.map(date => ({
+        date,
+        submissions: grouped[date] || 0
+      }));
+      
+      res.json({ data, message: 'Success' });
+    } catch (error) {
+      console.error('Time series error:', error);
+      res.json({ data: [], message: 'Time series data error' });
+    }
   });
 
   app.get('/api/admin/trends', async (req, res) => {
@@ -439,7 +471,38 @@ export async function registerExpressRoutes(app: Express): Promise<Server> {
     if (!authResult.success) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
-    res.json({ data: [], message: 'Trends data not implemented yet' });
+    
+    try {
+      const assessments = await getStoredAssessments();
+      
+      // Calculate trend data
+      const riskLevels = assessments.reduce((acc: { [key: string]: number }, assessment) => {
+        if (assessment.level) {
+          acc[assessment.level] = (acc[assessment.level] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      const countries = assessments.reduce((acc: { [key: string]: number }, assessment) => {
+        if (assessment.country) {
+          acc[assessment.country] = (acc[assessment.country] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      const data = {
+        riskLevels: Object.entries(riskLevels).map(([level, count]) => ({ level, count })),
+        topCountries: Object.entries(countries)
+          .sort(([,a], [,b]) => (b as number) - (a as number))
+          .slice(0, 5)
+          .map(([country, count]) => ({ country, count }))
+      };
+      
+      res.json({ data, message: 'Success' });
+    } catch (error) {
+      console.error('Trends error:', error);
+      res.json({ data: { riskLevels: [], topCountries: [] }, message: 'Trends data error' });
+    }
   });
 
   app.get('/api/admin/export-csv', async (req, res) => {
