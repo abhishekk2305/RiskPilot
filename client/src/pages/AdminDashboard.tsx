@@ -681,7 +681,7 @@ export default function AdminDashboard() {
                       {submission.contract_type}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      ${submission.contract_value_usd.toLocaleString()}
+                      ${submission.contract_value_usd?.toLocaleString() || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
