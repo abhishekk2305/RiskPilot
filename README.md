@@ -72,12 +72,12 @@ Data collected is minimal (work email + form inputs) and stored only for pilot a
 
 Clone the repo and run locally:
 
-```bash
+(```bash
 git clone https://github.com/abhishekk2305/RiskPilot
 cd RiskPilot
 cp .env.example .env
 npm install
-npm run dev
+npm run dev''')
 
 Fill in .env with your service account details:
 GOOGLE_SA_EMAIL=
