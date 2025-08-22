@@ -20,11 +20,11 @@ We piloted RiskPilot with **6 N users** to validate speed, adoption, and usefuln
 
 ## Screenshots
 ## 📊 Admin Dashboard Overview
- ![Dashboard](./docs/Dashboard.png)
+ ![Dashboard](./Dashboard.png)
 ## 📈 Time Series Analytics
-![Graph](./docs/Graph.png)
+![Graph](./Graph.png)
 ## 📑 Recent Submissions
-![Submission](./docs/Submission.png)
+![Submission](./Submission.png)
 
 ## Learnings
 - Users valued speed + PDF trail
