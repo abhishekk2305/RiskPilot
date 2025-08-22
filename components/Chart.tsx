@@ -35,7 +35,10 @@ export default function Chart({ type, title, data }: ChartProps) {
         chartRef.current.destroy();
       }
 
-      const ctx = canvasRef.current!.getContext('2d');
+      // Double-check canvas is still available after async import
+      if (!canvasRef.current) return;
+      
+      const ctx = canvasRef.current.getContext('2d');
       if (!ctx) return;
 
       const chartConfig: any = {
