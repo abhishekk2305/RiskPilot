@@ -58,7 +58,6 @@ RiskPilot isn’t just another form. It’s instrumented to capture **proof of i
 - **% Useful**: whether the score feels trustworthy  
 - **Repeat Usage**: stickiness of the tool  
 
-These are the same metrics a real SaaS PM would report after a pilot.  
 
 ---
 
@@ -85,6 +84,8 @@ GOOGLE_SA_KEY=
 GOOGLE_SHEET_ID=
 ADMIN_KEY=your-secret
 
+---
+
 🗺 Roadmap
 
 Now: MVP + pilot analytics
@@ -93,9 +94,13 @@ Next: Alerts for high-risk submissions; richer scoring rules
 
 Later: Integrations with HRIS/payroll; audit logs; GDPR/SOC2 trust features
 
+---
+
 📄 License
 
 MIT — see LICENSE
+
+---
 
 🙌 A Note from the Maker
 
